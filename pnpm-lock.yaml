@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@mintplex-labs/piper-tts-web@1.0.5': 51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c
+  '@mintplex-labs/piper-tts-web@1.0.5': c016ed6e7eefc6c961b38fb494601f1dd5b3588295bf62bd2baa9363c6148d0a
 
 importers:
 
@@ -16,7 +16,7 @@ importers:
         version: 1.0.0
       '@mintplex-labs/piper-tts-web':
         specifier: 1.0.5
-        version: 1.0.5(patch_hash=51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c)(onnxruntime-web@1.20.1)
+        version: 1.0.5(patch_hash=c016ed6e7eefc6c961b38fb494601f1dd5b3588295bf62bd2baa9363c6148d0a)(onnxruntime-web@1.20.1)
       onnxruntime-web:
         specifier: 1.20.1
         version: 1.20.1
@@ -1002,7 +1002,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.3
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@mintplex-labs/piper-tts-web@1.0.5(patch_hash=51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c)(onnxruntime-web@1.20.1)':
+  '@mintplex-labs/piper-tts-web@1.0.5(patch_hash=c016ed6e7eefc6c961b38fb494601f1dd5b3588295bf62bd2baa9363c6148d0a)(onnxruntime-web@1.20.1)':
     dependencies:
       onnxruntime-web: 1.20.1
 

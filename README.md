@@ -78,7 +78,7 @@ popup (clic) → tabCapture.getMediaStreamId → background.ts
        → traduce solo los finales → background → overlay
 ```
 
-Para probarlo, copia `.env.example` en `.env.local` y rellena `WXT_DEEPGRAM_DEV_KEY` (**solo en local**). En producción hay que usar `WXT_STT_TOKEN_URL`, que apunta a un endpoint de tu backend. Ese endpoint llama a `POST https://api.deepgram.com/v1/auth/grant` con tu API key y devuelve `{ access_token }`. Puede vivir en el mismo gateway en Rust que Sinelow.
+Está **apagado por defecto**: la build normal no incluye su código ni pide sus permisos (`tabCapture`, `activeTab`, `scripting`). Para probarlo, copia `.env.example` en `.env.local`, pon `WXT_LIVE_MODE=true` y rellena `WXT_DEEPGRAM_DEV_KEY` (**solo en local**; `pnpm build` falla si la clave acaba en la build de producción). En producción hay que usar `WXT_STT_TOKEN_URL`, que apunta a un endpoint de tu backend. Ese endpoint llama a `POST https://api.deepgram.com/v1/auth/grant` con tu API key y devuelve `{ access_token }`. Puede vivir en el mismo gateway en Rust que Sinelow.
 
 ## Qué se guarda y cuándo se limpia
 
@@ -144,3 +144,9 @@ public/
 - [ ] Modo calidad con un LLM, pasando contexto de las frases anteriores.
 - [x] Doblaje con TTS bajando el volumen original (modo sincronización y manual).
 - [ ] Atajo de teclado para activar/desactivar y arrastrar el subtítulo.
+
+## Licencia y privacidad
+
+- Voxlate se publica bajo la **GPL v3 o posterior** ([LICENSE](LICENSE)). Tiene que ser GPL porque incluye espeak-ng (GPL-3.0) dentro del fonetizador de Piper.
+- Componentes de terceros y licencias de las voces: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Política de privacidad (es el enlace que pide la Chrome Web Store): [PRIVACY.md](PRIVACY.md).

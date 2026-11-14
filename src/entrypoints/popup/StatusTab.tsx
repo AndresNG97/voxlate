@@ -158,6 +158,7 @@ export function StatusTab({ s }: { s: Settings }) {
           value={`${s.dubOriginalVolume} %`}
           tone={s.dub ? 'on' : 'off'}
         />
+        {__LIVE_MODE__ && (
         <Row
           label="Modo audio (beta)"
           value={
@@ -169,6 +170,7 @@ export function StatusTab({ s }: { s: Settings }) {
           }
           tone={!live || live.status === 'idle' ? 'off' : live.status === 'error' ? 'warn' : 'on'}
         />
+        )}
       </Card>
 
       <Card title="En esta pestaña">

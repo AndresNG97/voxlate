@@ -33,7 +33,8 @@ export default function App() {
           { id: 'subtitles', label: 'Subtítulos', render: () => <SubtitleTab s={s} set={set} /> },
           { id: 'dub', label: 'Doblaje', dot: s.dub, render: () => <DubTab s={s} set={set} /> },
           { id: 'voice', label: 'Voz', render: () => <VoiceTab s={s} set={set} /> },
-          { id: 'audio', label: 'Audio', render: () => <LiveTab /> },
+          // El modo audio solo existe si se compila con WXT_LIVE_MODE=true.
+          ...(__LIVE_MODE__ ? [{ id: 'audio' as const, label: 'Audio', render: () => <LiveTab /> }] : []),
         ]}
       />
     </main>

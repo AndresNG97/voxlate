@@ -137,16 +137,19 @@ export default defineContentScript({
         const primary = tracks.manual ?? c;
         const words = tracks.asr?.words;
         const cues = primary !== tracks.asr && words?.length ? alignToWords(primary.cues, words) : primary.cues;
-        // Para comprobar en la consola (F12, filtrar "voxlate") qué tiempos se están usando.
-        const withWords = cues.filter((q) => q.timing === 'words').length;
-        console.info(
-          '[voxlate]',
-          `subtítulos: ${tracks.manual ? `manual (${tracks.manual.cues.length} frases)` : 'sin manual'} + ` +
-            `${tracks.asr ? `automáticos (${tracks.asr.words?.length ?? 0} palabras)` : 'sin automáticos'} → ` +
-            (withWords
-              ? `tiempos de palabras en ${withWords}/${cues.length} frases ✔`
-              : 'tiempos de los bloques (sin palabras: menos precisos)'),
-        );
+        // En desarrollo, para comprobar en la consola (F12, filtrar "voxlate") qué tiempos
+        // se usan. En la build de tienda no se escribe nada (la pestaña Estado ya lo muestra).
+        if (import.meta.env.DEV) {
+          const withWords = cues.filter((q) => q.timing === 'words').length;
+          console.info(
+            '[voxlate]',
+            `subtítulos: ${tracks.manual ? `manual (${tracks.manual.cues.length} frases)` : 'sin manual'} + ` +
+              `${tracks.asr ? `automáticos (${tracks.asr.words?.length ?? 0} palabras)` : 'sin automáticos'} → ` +
+              (withWords
+                ? `tiempos de palabras en ${withWords}/${cues.length} frases ✔`
+                : 'tiempos de los bloques (sin palabras: menos precisos)'),
+          );
+        }
         session.load({
           id: primary.videoId ? primary.id : undefined,
           cues,

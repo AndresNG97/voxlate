@@ -1,28 +1,43 @@
 /**
  * Offscreen document (raíz de composición). Lo comparten:
- * - Modo audio: TabAudioCapture → Deepgram → traductor de Chrome → background → overlay
+ * - Modo audio (solo con WXT_LIVE_MODE=true): TabAudioCapture → Deepgram → traductor → overlay
  * - Voz neuronal: Piper genera y reproduce el audio del doblaje (mensajes neural:*)
  * - Detector de voz: Silero VAD analiza el audio de YouTube (mensajes vad:*)
  */
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
 import { sendRuntime, type RuntimeMessage } from '@/adapters/chrome/messages';
-import { TabAudioCapture } from '@/adapters/chrome/tab-audio-capture';
-import { deepgramRecognizer } from '@/adapters/deepgram/deepgram-recognizer';
 import { decodePcm } from '@/adapters/chrome/pcm-codec';
 import { PiperSynthesizer } from '@/adapters/piper/piper-synthesizer';
 import { SileroVad } from '@/adapters/silero/silero-vad';
-import { LiveTranscription } from '@/core/application/live-transcription';
+import type { LiveTranscription } from '@/core/application/live-transcription';
 
 // ------------------------------------------------------------- modo audio
 let currentTab = -1;
+let live: Promise<LiveTranscription> | null = null;
 
-const live = new LiveTranscription({
-  recognizer: deepgramRecognizer,
-  translator: new ChromeTranslator(),
-  onStatus: (status, error) => sendRuntime({ type: 'live:status', status, tabId: currentTab, error }),
-  onCaption: ({ original, translated, isFinal }) =>
-    sendRuntime({ type: 'live:transcript', tabId: currentTab, original, translated, isFinal }),
-});
+/**
+ * El modo audio y Deepgram se cargan solo si se compila con WXT_LIVE_MODE=true.
+ * Si no, __LIVE_MODE__ es false y este bloque (con sus imports) se elimina de la build.
+ */
+function liveTranscription(): Promise<LiveTranscription> {
+  if (__LIVE_MODE__) {
+    live ??= Promise.all([
+      import('@/core/application/live-transcription'),
+      import('@/adapters/deepgram/deepgram-recognizer'),
+    ]).then(
+      ([{ LiveTranscription }, { deepgramRecognizer }]) =>
+        new LiveTranscription({
+          recognizer: deepgramRecognizer,
+          translator: new ChromeTranslator(),
+          onStatus: (status, error) => sendRuntime({ type: 'live:status', status, tabId: currentTab, error }),
+          onCaption: ({ original, translated, isFinal }) =>
+            sendRuntime({ type: 'live:transcript', tabId: currentTab, original, translated, isFinal }),
+        }),
+    );
+    return live;
+  }
+  return Promise.reject(new Error('El modo audio no está incluido en esta versión.'));
+}
 
 // ------------------------------------------------------------ voz neuronal
 // Archivos que añade wxt.config.ts (hook build:publicAssets) en /vendor.
@@ -46,19 +61,27 @@ browser.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
       sendResponse(true);
       return;
     case 'offscreen:start':
+      if (!__LIVE_MODE__) return;
       currentTab = msg.tabId;
-      live.start(new TabAudioCapture(msg.streamId), msg.from, msg.to).catch((e: unknown) => {
-        sendRuntime({
-          type: 'live:status',
-          status: 'error',
-          tabId: currentTab,
-          error: e instanceof Error ? e.message : String(e),
-        });
-        void live.stop();
-      });
+      liveTranscription()
+        .then(async (t) => {
+          const { TabAudioCapture } = await import('@/adapters/chrome/tab-audio-capture');
+          await t.start(new TabAudioCapture(msg.streamId), msg.from, msg.to).catch((e: unknown) => {
+            void t.stop();
+            throw e;
+          });
+        })
+        .catch((e: unknown) =>
+          sendRuntime({
+            type: 'live:status',
+            status: 'error',
+            tabId: currentTab,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
       return;
     case 'offscreen:stop':
-      void live.stop();
+      void live?.then((t) => t.stop());
       return;
 
     case 'neural:prepare':

@@ -15,10 +15,22 @@ index c402a09f0ea5a20a5b4d62cea4772fcbd2801a12..3fdc07570b42af7c8f128af29857bd95
  export declare const INFERENCE_PROGRESS_URL = "tts://inference-progress";
  /**
 diff --git a/dist/piper-tts-web.js b/dist/piper-tts-web.js
-index 250fa0133830669eb6c0c215ae494cb9eb7db4bf..000f35bead7e2751727f133f40c5cc880ba53077 100644
+index 250fa0133830669eb6c0c215ae494cb9eb7db4bf..68370247051178e6c949e43f353ac1491d4924be 100644
 --- a/dist/piper-tts-web.js
 +++ b/dist/piper-tts-web.js
-@@ -309,7 +309,7 @@ const _TtsSession = class _TtsSession {
+@@ -11,8 +11,9 @@ var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "
+ var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
+ var _createPiperPhonemize, _modelConfig, _ort, _ortSession, _progressCallback, _wasmPaths, _logger, _TtsSession_instances, predictChunk_fn;
+ const HF_BASE = "https://huggingface.co/diffusionstudio/piper-voices/resolve/main";
+-const ONNX_BASE = "https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/";
+-const WASM_BASE = "https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize";
++// Parche Voxlate: sin rutas por defecto a CDN (la extensión pasa las suyas, locales).
++const ONNX_BASE = "";
++const WASM_BASE = "";
+ const PATH_MAP = {
+   "ar_JO-kareem-low": "ar/ar_JO/kareem/low/ar_JO-kareem-low.onnx",
+   "ar_JO-kareem-medium": "ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx",
+@@ -309,7 +310,7 @@ const _TtsSession = class _TtsSession {
        { executionProviders: ["wasm"] }
      ));
    }
@@ -27,7 +39,7 @@ index 250fa0133830669eb6c0c215ae494cb9eb7db4bf..000f35bead7e2751727f133f40c5cc88
      var _a, _b, _c, _d, _e;
      await this.waitReady;
      const sampleRate = __privateGet(this, _modelConfig).audio.sample_rate;
-@@ -330,7 +330,7 @@ const _TtsSession = class _TtsSession {
+@@ -330,7 +331,7 @@ const _TtsSession = class _TtsSession {
            total: chunks.length
          });
        }
@@ -36,7 +48,7 @@ index 250fa0133830669eb6c0c215ae494cb9eb7db4bf..000f35bead7e2751727f133f40c5cc88
      }
      if (chunks.length > 1) {
        (_d = __privateGet(this, _logger)) == null ? void 0 : _d.call(this, "TTS inference: all chunks complete.");
-@@ -360,7 +360,7 @@ _progressCallback = new WeakMap();
+@@ -360,7 +361,7 @@ _progressCallback = new WeakMap();
  _wasmPaths = new WeakMap();
  _logger = new WeakMap();
  _TtsSession_instances = new WeakSet();
@@ -45,7 +57,7 @@ index 250fa0133830669eb6c0c215ae494cb9eb7db4bf..000f35bead7e2751727f133f40c5cc88
    const input = JSON.stringify([{ text: text.trim() }]);
    const phonemeIds = await new Promise(async (resolve) => {
      const module = await __privateGet(this, _createPiperPhonemize).call(this, {
-@@ -387,7 +387,8 @@ predictChunk_fn = async function(text) {
+@@ -387,7 +388,8 @@ predictChunk_fn = async function(text) {
    });
    const speakerId = 0;
    const noiseScale = __privateGet(this, _modelConfig).inference.noise_scale;
