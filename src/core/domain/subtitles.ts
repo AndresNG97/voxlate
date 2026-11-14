@@ -23,8 +23,6 @@ export interface SubtitleLines {
   interim?: boolean;
 }
 
-export const EMPTY_LINES: SubtitleLines = { translated: '', original: '' };
-
 /**
  * Decide qué líneas se ven según los ajustes. Si aún no hay traducción y la
  * traducción es lo único visible, mostramos el original para no dejar el hueco vacío.

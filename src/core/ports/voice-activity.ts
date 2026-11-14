@@ -1,6 +1,7 @@
 /**
  * Puerto: tramos del vídeo en los que habla alguien, detectados en el audio real.
- * Adaptador: adapters/youtube/voice-activity-store.ts (lo alimenta el audio-tap de YouTube)
+ * Implementación: core/domain/voice-activity.ts (SpeechTimeline), alimentada por el
+ * audio de YouTube (adapters/youtube/audio-tap.ts) analizado con Silero (adapters/silero).
  */
 import type { VoiceInterval } from '../domain/timing';
 

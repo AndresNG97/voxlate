@@ -17,7 +17,7 @@ interface Pipe {
 }
 
 /** Frecuencia que necesita el detector de voz. */
-export const TAP_SAMPLE_RATE = 16_000;
+const TAP_SAMPLE_RATE = 16_000;
 /** Se entrega audio en lotes de este tamaño (o antes si hay un salto). */
 const BATCH_MS = 2000;
 

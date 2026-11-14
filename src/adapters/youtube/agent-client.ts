@@ -113,8 +113,6 @@ export class YoutubeAgentClient {
       case 'download-progress':
         this.onDownloadProgress?.(msg.fraction);
         return;
-      case 'ready':
-        return;
     }
   }
 }

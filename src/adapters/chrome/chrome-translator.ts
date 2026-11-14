@@ -18,7 +18,7 @@ export class ChromeTranslator implements TranslatorPort {
   private running = 0;
   private readonly waiting: (() => void)[] = [];
 
-  static isSupported(): boolean {
+  private static isSupported(): boolean {
     return typeof self !== 'undefined' && 'Translator' in self;
   }
 

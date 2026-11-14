@@ -227,6 +227,5 @@ export default defineContentScript({
       }
     });
 
-    post({ type: 'ready' });
   },
 });

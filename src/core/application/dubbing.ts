@@ -19,6 +19,7 @@
  *
  * No sabe nada de Chrome ni de YouTube: habla con SpeechSynthesizerPort y MediaElementPort.
  */
+import { speechEndOf as speechEnd, speechStartOf as speechStart } from '../domain/cue';
 import { correctRate, DEFAULT_CHARS_PER_SEC, planSegment } from '../domain/dub-sync';
 import type { MediaElementPort } from '../ports/media-element';
 import type { SpeakResult, SpeechSynthesizerPort } from '../ports/speech-synthesizer';
@@ -430,8 +431,8 @@ export class DubbingService {
     const o = this.deps.options();
     const estSpeechMs = (cue.text.length / this.deps.calibration.get(this.voiceKey(o))) * 1000;
     const readyAt = this.deps.media.currentTimeMs + estSpeechMs * this.renderRatio * (this.deps.media.playbackRate || 1);
-    const late = readyAt - cue.start;
-    return late > TOO_LATE_MS && late > (speechEnd(cue) - cue.start) / 2;
+    const late = readyAt - speechStart(cue);
+    return late > TOO_LATE_MS && late > (speechEnd(cue) - speechStart(cue)) / 2;
   }
 
   /**
@@ -475,7 +476,7 @@ export class DubbingService {
           lang: o.lang,
           voiceName: o.voiceName,
           // En sincronización, que la voz se genere ya con la duración de lo que habla la persona.
-          targetMs: o.sync ? ((speechEnd(cue) - cue.start) / this.userRate) * o.rate : undefined,
+          targetMs: o.sync ? ((speechEnd(cue) - speechStart(cue)) / this.userRate) * o.rate : undefined,
         });
         this.durations.set(res.id, res.durationMs);
         if (res.naturalMs) this.stretches.set(res.id, res.durationMs / res.naturalMs);
@@ -540,14 +541,6 @@ export class DubbingService {
     this.lastError = message;
     this.deps.onError(message);
   }
-}
-
-function speechStart(cue: Pick<DubCue, 'start' | 'speechStart'>): number {
-  return cue.speechStart ?? cue.start;
-}
-
-function speechEnd(cue: Pick<DubCue, 'end' | 'speechEnd'>): number {
-  return cue.speechEnd ?? cue.end;
 }
 
 function clamp(n: number, min: number, max: number) {

@@ -2,8 +2,6 @@
 import type { LiveStatus } from '@/core/application/live-transcription';
 import type { PrepareRequest, SpeakRequest } from '@/core/ports/speech-synthesizer';
 
-export type { LiveStatus };
-
 export type RuntimeMessage =
   // popup → background
   | { type: 'live:start'; tabId: number; streamId: string }

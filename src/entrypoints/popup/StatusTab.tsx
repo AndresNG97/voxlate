@@ -12,6 +12,7 @@ import { neuralVoicesFor } from '@/adapters/piper/piper-voices';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
 import { Card } from './controls';
+import { activeYoutubeTabId } from './useActiveTab';
 
 const translator = new ChromeTranslator();
 const cache = new ChromeTranslationCache();
@@ -49,16 +50,10 @@ export function StatusTab({ s }: { s: Settings }) {
       browser.runtime
         .sendMessage({ type: 'live:get-status' } satisfies RuntimeMessage)
         .then((st: LiveState) => alive && setLive(st), () => {});
-      const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-      let isYoutube = false;
-      try {
-        isYoutube = !!tab?.url && /(^|\.)youtube\.com$/.test(new URL(tab.url).hostname);
-      } catch {
-        /* url rara */
-      }
-      if (!tab?.id || !isYoutube) return alive && setPage('no-youtube');
+      const tabId = await activeYoutubeTabId();
+      if (tabId === null) return alive && setPage('no-youtube');
       browser.tabs
-        .sendMessage(tab.id, { type: 'page:status' } satisfies RuntimeMessage)
+        .sendMessage(tabId, { type: 'page:status' } satisfies RuntimeMessage)
         .then((st: PageStatus | undefined) => alive && setPage(st ?? 'no-response'), () => alive && setPage('no-response'));
     }
     void refresh();

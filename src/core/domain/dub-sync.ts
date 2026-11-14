@@ -86,7 +86,7 @@ export interface SegmentPlan {
 }
 
 /** Velocidad mínima de reproducción para que la voz no SUENE por debajo de minVoice. */
-export function minPlaybackRate(baseVoiceRate: number, generatedStretch = 1, limits: SyncLimits = SYNC_LIMITS): number {
+function minPlaybackRate(baseVoiceRate: number, generatedStretch = 1, limits: SyncLimits = SYNC_LIMITS): number {
   return baseVoiceRate * limits.minVoice * Math.max(1, generatedStretch);
 }
 

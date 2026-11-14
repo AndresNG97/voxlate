@@ -219,7 +219,7 @@ export class PiperSynthesizer implements SpeechSynthesizerPort {
   }
 }
 
-export class NoVoiceError extends Error {
+class NoVoiceError extends Error {
   constructor(lang: string) {
     super(`No hay voz neuronal para "${lang}"`);
   }

@@ -1,6 +1,6 @@
 /** Detalles del DOM de YouTube: el reproductor, su <video> y los subtítulos nativos. */
 
-export const PLAYER_ID = 'movie_player';
+const PLAYER_ID = 'movie_player';
 
 export function isWatchPage(): boolean {
   return location.pathname === '/watch';

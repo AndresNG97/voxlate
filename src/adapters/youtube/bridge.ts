@@ -9,7 +9,6 @@ export const CONTENT = 'vt-content';
 
 /** Mensajes que manda el agente (MAIN world) → content script. */
 export type AgentMessage =
-  | { source: typeof AGENT; type: 'ready' }
   | {
       source: typeof AGENT;
       type: 'captions';
