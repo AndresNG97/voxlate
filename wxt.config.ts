@@ -75,6 +75,12 @@ export default defineConfig({
       ...(LIVE_MODE ? (['tabCapture', 'activeTab', 'scripting'] as const) : []),
     ],
     host_permissions: ['https://www.youtube.com/*'],
+    // La voz neuronal (Piper) y el detector de voz (Silero) corren en WebAssembly:
+    // sin 'wasm-unsafe-eval' ONNX Runtime falla con "no available backend found".
+    // Solo permite compilar WASM empaquetado en la extensión (no permite eval de JS).
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+    },
   },
   // Constante de compilación: sin modo audio, su código (Deepgram) se elimina de la build.
   vite: () => ({ define: { __LIVE_MODE__: JSON.stringify(LIVE_MODE) } }),

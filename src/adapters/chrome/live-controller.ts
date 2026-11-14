@@ -59,7 +59,10 @@ export class LiveController {
     this.live = { status: 'connecting', tabId };
 
     // Overlay genérico en la pestaña (permiso temporal gracias a activeTab).
-    await browser.scripting.executeScript({ target: { tabId }, files: ['/live-overlay.js'] });
+    // (live-overlay solo se compila con WXT_LIVE_MODE=true, así que su ruta no
+    // siempre está en los tipos que genera WXT).
+    const files = ['/live-overlay.js'] as unknown as ScriptPublicPath[];
+    await browser.scripting.executeScript({ target: { tabId }, files });
 
     if (!(await ensureOffscreen())) throw new Error('No se pudo iniciar la captura de audio (offscreen document).');
     const s = await this.settings.get();
