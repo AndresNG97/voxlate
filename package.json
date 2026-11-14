@@ -13,6 +13,9 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@diffusionstudio/piper-wasm": "1.0.0",
+    "@mintplex-labs/piper-tts-web": "1.0.5",
+    "onnxruntime-web": "1.20.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

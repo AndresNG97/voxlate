@@ -1,5 +1,5 @@
-/** Controles pequeños reutilizados por las secciones del popup. */
-import type { ReactNode } from 'react';
+/** Controles pequeños reutilizados por las pestañas del popup. */
+import { useState, type ReactNode } from 'react';
 
 export function Check(props: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
   return (
@@ -20,7 +20,7 @@ export function Range(props: {
   onChange: (v: number) => void;
 }) {
   return (
-    <>
+    <div className="range">
       <div className="label">
         {props.label} <b>{props.display}</b>
       </div>
@@ -32,7 +32,7 @@ export function Range(props: {
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
       />
-    </>
+    </div>
   );
 }
 
@@ -42,7 +42,7 @@ export function Segmented<T extends string>(props: {
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="segmented">
+    <div className="segmented" style={{ gridTemplateColumns: `repeat(${props.options.length}, 1fr)` }}>
       {props.options.map(([v, label]) => (
         <button key={v} className={props.value === v ? 'on' : ''} onClick={() => props.onChange(v)}>
           {label}
@@ -52,15 +52,67 @@ export function Segmented<T extends string>(props: {
   );
 }
 
-/** Sección plegable (para que el popup no sea kilométrico). */
-export function Group(props: { title: string; defaultOpen?: boolean; badge?: ReactNode; children: ReactNode }) {
+/** Bloque con título que agrupa opciones relacionadas dentro de una pestaña. */
+export function Card(props: { title?: string; children: ReactNode }) {
   return (
-    <details className="group" open={props.defaultOpen}>
-      <summary>
-        {props.title}
-        {props.badge}
-      </summary>
-      <div className="group-body">{props.children}</div>
-    </details>
+    <section className="card">
+      {props.title && <h2>{props.title}</h2>}
+      {props.children}
+    </section>
+  );
+}
+
+export interface TabDef<T extends string> {
+  id: T;
+  label: string;
+  /** Punto de color junto a la etiqueta (p. ej. "doblaje activo"). */
+  dot?: boolean;
+  render: () => ReactNode;
+}
+
+const TAB_KEY = 'voxlate:popup-tab';
+
+/** Pestañas; recuerda la última abierta (solo en este navegador). */
+export function Tabs<T extends string>(props: { tabs: TabDef<T>[] }) {
+  const [active, setActive] = useState<T>(() => {
+    try {
+      const saved = localStorage.getItem(TAB_KEY);
+      if (props.tabs.some((t) => t.id === saved)) return saved as T;
+    } catch {
+      /* sin almacenamiento: pestaña por defecto */
+    }
+    return props.tabs[0]!.id;
+  });
+
+  const select = (id: T) => {
+    setActive(id);
+    try {
+      localStorage.setItem(TAB_KEY, id);
+    } catch {
+      /* da igual */
+    }
+  };
+
+  const current = props.tabs.find((t) => t.id === active) ?? props.tabs[0]!;
+  return (
+    <>
+      <nav className="tabs" role="tablist">
+        {props.tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={t.id === current.id}
+            className={t.id === current.id ? 'on' : ''}
+            onClick={() => select(t.id)}
+          >
+            {t.label}
+            {t.dot && <i className="dot" aria-label="activo" />}
+          </button>
+        ))}
+      </nav>
+      <div className="panel" role="tabpanel">
+        {current.render()}
+      </div>
+    </>
   );
 }

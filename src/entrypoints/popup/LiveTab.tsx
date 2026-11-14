@@ -1,7 +1,9 @@
+/** Pestaña "Audio": modo audio (beta) para vídeos sin subtítulos en cualquier web. */
 import { useEffect, useState } from 'react';
 import type { LiveState, RuntimeMessage } from '@/adapters/chrome/messages';
+import { Card } from './controls';
 
-export function LiveSection() {
+export function LiveTab() {
   const [live, setLive] = useState<LiveState>({ status: 'idle', tabId: null });
   const [error, setError] = useState<string | null>(null);
 
@@ -34,11 +36,11 @@ export function LiveSection() {
   }
 
   return (
-    <section className="live">
-      <div className="label">
-        Modo audio <span className="beta">beta</span>
-      </div>
-      <p className="hint">Para vídeos sin subtítulos, en cualquier web. Transcribe el audio en tiempo real.</p>
+    <Card title="Modo audio (beta)">
+      <p className="hint">
+        Para vídeos sin subtítulos, en cualquier web: escucha el audio de la pestaña, lo transcribe en tiempo real y lo
+        traduce. Ahora mismo usa Deepgram, que necesita una clave.
+      </p>
       {live.status === 'idle' || live.status === 'error' ? (
         <button className="primary" onClick={start}>
           Traducir el audio de esta pestaña
@@ -49,6 +51,6 @@ export function LiveSection() {
         </button>
       )}
       {(error || live.error) && <p className="error">{error ?? live.error}</p>}
-    </section>
+    </Card>
   );
 }

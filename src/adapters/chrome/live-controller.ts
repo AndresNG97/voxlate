@@ -5,8 +5,7 @@
  */
 import type { SettingsStorePort } from '@/core/ports/settings-store';
 import type { LiveState, RuntimeMessage } from './messages';
-
-const OFFSCREEN_PATH = '/offscreen.html';
+import { ensureOffscreen, hasOffscreen } from './offscreen-host';
 
 export class LiveController {
   private live: LiveState = { status: 'idle', tabId: null };
@@ -62,7 +61,7 @@ export class LiveController {
     // Overlay genérico en la pestaña (permiso temporal gracias a activeTab).
     await browser.scripting.executeScript({ target: { tabId }, files: ['/live-overlay.js'] });
 
-    await this.ensureOffscreen();
+    if (!(await ensureOffscreen())) throw new Error('No se pudo iniciar la captura de audio (offscreen document).');
     const s = await this.settings.get();
     await browser.runtime.sendMessage({
       type: 'offscreen:start',
@@ -77,27 +76,11 @@ export class LiveController {
   private async stop() {
     const tabId = this.live.tabId;
     this.live = { status: 'idle', tabId: null };
-    if (await this.hasOffscreen()) {
+    // No cerramos el offscreen document: puede estar usándolo la voz neuronal.
+    if (await hasOffscreen()) {
       await browser.runtime.sendMessage({ type: 'offscreen:stop', target: 'offscreen' } satisfies RuntimeMessage);
-      await browser.offscreen.closeDocument();
     }
     if (tabId != null) this.sendToTab(tabId, { type: 'live:overlay-status', status: 'idle' });
-  }
-
-  private async hasOffscreen() {
-    const contexts = await browser.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT' as Browser.runtime.ContextType],
-    });
-    return contexts.length > 0;
-  }
-
-  private async ensureOffscreen() {
-    if (await this.hasOffscreen()) return;
-    await browser.offscreen.createDocument({
-      url: OFFSCREEN_PATH,
-      reasons: ['USER_MEDIA' as Browser.offscreen.Reason],
-      justification: 'Capturar el audio de la pestaña para transcribirlo y traducirlo en tiempo real.',
-    });
   }
 
   private sendToTab(tabId: number, msg: RuntimeMessage) {

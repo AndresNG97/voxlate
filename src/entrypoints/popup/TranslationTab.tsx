@@ -1,20 +1,51 @@
+/** Barra de idiomas (siempre visible) y pestaña "Traducción": motor, modelo y traducciones guardadas. */
 import { useEffect, useState } from 'react';
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
+import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
-import { Segmented } from './controls';
+import { Card, Segmented } from './controls';
 import type { SetSettings } from './useSettings';
 
 const translator = new ChromeTranslator();
+const cache = new ChromeTranslationCache();
 
-export function TranslationSection({ s, set }: { s: Settings; set: SetSettings }) {
+/** Idioma del vídeo → idioma destino. Afecta a todo, por eso va fuera de las pestañas. */
+export function LanguageBar({ s, set }: { s: Settings; set: SetSettings }) {
+  return (
+    <div className="langs">
+      <select value={s.sourceLang} onChange={(e) => set({ sourceLang: e.target.value })} aria-label="Idioma del vídeo">
+        {SOURCE_LANGUAGES.map(([code, label]) => (
+          <option key={code} value={code}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <span className="arrow">→</span>
+      <select value={s.targetLang} onChange={(e) => set({ targetLang: e.target.value })} aria-label="Traducir a">
+        {TARGET_LANGUAGES.map(([code, label]) => (
+          <option key={code} value={code}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
   const [model, setModel] = useState<TranslatorAvailability | 'checking'>('checking');
   const [progress, setProgress] = useState<number | null>(null);
+  const [saved, setSaved] = useState<number | null>(null);
 
   useEffect(() => {
     setModel('checking');
     translator.availability(s.sourceLang, s.targetLang).then(setModel);
   }, [s.sourceLang, s.targetLang]);
+
+  useEffect(() => {
+    cache.count().then(setSaved, () => setSaved(0));
+  }, []);
 
   async function downloadModel() {
     setProgress(0);
@@ -29,28 +60,14 @@ export function TranslationSection({ s, set }: { s: Settings; set: SetSettings }
     }
   }
 
+  async function clearSaved() {
+    await cache.clear();
+    setSaved(0);
+  }
+
   return (
     <>
-      <section className="langs">
-        <select value={s.sourceLang} onChange={(e) => set({ sourceLang: e.target.value })} aria-label="Idioma del vídeo">
-          {SOURCE_LANGUAGES.map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <span className="arrow">→</span>
-        <select value={s.targetLang} onChange={(e) => set({ targetLang: e.target.value })} aria-label="Traducir a">
-          {TARGET_LANGUAGES.map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      <section>
-        <div className="label">Motor de traducción</div>
+      <Card title="Motor de traducción">
         <Segmented
           value={s.engine}
           options={[
@@ -59,8 +76,23 @@ export function TranslationSection({ s, set }: { s: Settings; set: SetSettings }
           ]}
           onChange={(engine) => set({ engine })}
         />
+        <p className="hint">
+          {s.engine === 'chrome'
+            ? 'Traduce en tu equipo: gratis, privado y sin conexión. Si no está disponible, se usa YouTube.'
+            : 'Usa la traducción automática de los propios subtítulos de YouTube.'}
+        </p>
         {s.engine === 'chrome' && <ModelStatus state={model} progress={progress} onDownload={downloadModel} />}
-      </section>
+      </Card>
+
+      <Card title="Traducciones guardadas">
+        <p className="hint">
+          Cada vídeo se traduce entero una vez y se guarda, así al volver a verlo es instantáneo
+          {saved !== null && ` (${saved} ${saved === 1 ? 'vídeo' : 'vídeos'} guardados)`}.
+        </p>
+        <button className="link small" onClick={clearSaved} disabled={!saved}>
+          Borrar traducciones guardadas
+        </button>
+      </Card>
     </>
   );
 }

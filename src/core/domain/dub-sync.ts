@@ -18,6 +18,9 @@
  *
  *        s = (L / (c · r0)) / (W / v0) = L · v0 / (c · r0 · W)
  *
+ *   Si la voz genera el audio por adelantado (Piper) conocemos su duración
+ *   exacta D a velocidad 1 y se usa D en lugar de L / c:  s = D · v0 / (r0 · W)
+ *
  *   s ≤ 1 → ya cabe: r = r0, v = v0.
  *   s > 1 → se reparte de forma geométrica con un peso α (parte de la voz):
  *
@@ -37,6 +40,11 @@ export interface SyncInput {
   windowSec: number;
   /** c: caracteres por segundo de la voz a velocidad 1. */
   charsPerSec: number;
+  /**
+   * Duración exacta de la frase a velocidad 1, en segundos, si la voz ya la
+   * generó por adelantado (Piper). Sustituye a la estimación L / c.
+   */
+  speechSec?: number;
   /** r0: velocidad base de la voz. */
   baseVoiceRate: number;
   /** v0: velocidad del vídeo puesta por el usuario. */
@@ -76,7 +84,9 @@ const MIN_WINDOW_SEC = 0.4;
 export function solveSync(input: SyncInput, limits: SyncLimits = SYNC_LIMITS): SyncResult {
   const { chars, charsPerSec: c, baseVoiceRate: r0, baseVideoRate: v0 } = input;
   const W = Math.max(MIN_WINDOW_SEC, input.windowSec);
-  const s = (chars * v0) / (c * r0 * W);
+  // Tiempo de voz a velocidad 1: exacto si lo hay, estimado (L / c) si no.
+  const speechAt1 = input.speechSec ?? chars / c;
+  const s = (speechAt1 * v0) / (r0 * W);
 
   if (!(s > 1)) return { voiceRate: r0, videoRate: v0, stretch: Math.max(0, s), fits: true };
 

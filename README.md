@@ -34,7 +34,18 @@ youtube.content.ts  (mundo aislado, raíz de composición)
   └─ oculta los subtítulos nativos
 ```
 
-Hay dos motores, que se eligen en el popup:
+**Traducción completa y caché:** YouTube entrega la pista entera al empezar. Se traduce toda (primero
+desde donde estás hasta el final, luego lo anterior) y se guarda por vídeo e idioma en
+`chrome.storage.local`, así al volver a un vídeo la traducción es instantánea.
+
+**Doblaje:** con voz neuronal (Piper) el audio de las frases del próximo minuto y medio se genera por
+adelantado en el offscreen document; como se conoce la duración exacta de cada frase, la fórmula del
+modo sincronización (`core/domain/dub-sync.ts`) ajusta voz y vídeo con precisión. Con la voz del
+sistema (`chrome.tts`) la duración se estima y se calibra sobre la marcha. El motor ONNX y el
+fonetizador de Piper se copian de `node_modules` al compilar (`wxt.config.ts`); las voces (~60 MB)
+se descargan una vez de Hugging Face.
+
+Hay dos motores de traducción, que se eligen en el popup:
 - **Chrome (local):** traduce on-device. Es gratis, privado y no consume red. Es el motor por defecto.
 - **YouTube:** repide la pista con `&tlang=es`. Es el plan B automático si la Translator API no está disponible.
 
@@ -68,8 +79,8 @@ src/
       settings.ts                ajustes, valores por defecto, idiomas
       subtitles.ts               estilo de subtítulos y qué líneas se ven
     ports/                       interfaces
-      translator.ts  speech-synthesizer.ts  speech-recognizer.ts  audio-source.ts
-      media-element.ts  subtitle-view.ts  settings-store.ts
+      translator.ts  translation-cache.ts  speech-synthesizer.ts  speech-recognizer.ts
+      audio-source.ts  media-element.ts  subtitle-view.ts  settings-store.ts
     application/                 casos de uso
       caption-session.ts         traducir y mostrar una pista sincronizada
       dubbing.ts                 doblaje (sincronización / manual)
@@ -78,6 +89,7 @@ src/
     chrome/                      Translator API, chrome.tts, chrome.storage, tabCapture, mensajes, modo audio
     youtube/                     agente MAIN world, parser timedtext, DOM del reproductor
     dom/                         overlay de subtítulos, <video>
+    piper/                       voz neuronal local (ONNX en WASM, corre en el offscreen document)
     deepgram/                    STT en streaming
   entrypoints/                   raíces de composición (background, content scripts, offscreen, popup)
 public/
@@ -87,7 +99,8 @@ public/
 | Puerto | Adaptadores actuales | Ideas |
 |---|---|---|
 | `TranslatorPort` | Translator API de Chrome (directa o vía la página de YouTube) | LLM con contexto (premium) |
-| `SpeechSynthesizerPort` | `chrome.tts` (voces del sistema) | Piper/Kokoro en WASM, ElevenLabs |
+| `SpeechSynthesizerPort` | Piper (voz neuronal local, genera el audio por adelantado) · `chrome.tts` (voces del sistema) | Kokoro, ElevenLabs |
+| `TranslationCachePort` | `chrome.storage.local` (últimos 40 vídeos) | |
 | `SpeechRecognizerPort` | Deepgram | Reconocimiento local de Chrome, Whisper/Moonshine en WebGPU |
 | `SubtitleViewPort` | Overlay en Shadow DOM | |
 | `MediaElementPort` | `<video>` del DOM | |

@@ -9,6 +9,8 @@ import { AGENT, CONTENT, isAgentMessage, type AgentMessage, type AgentRpc, type 
 import { parseTimedText } from './timedtext';
 
 export interface YoutubeCaptions {
+  /** Identificador estable de la pista: vídeo + idioma + manual/automática. */
+  id: string;
   videoId: string;
   /** Idioma base de la pista (p. ej. 'en'). */
   lang: string;
@@ -79,6 +81,7 @@ export class YoutubeAgentClient {
       case 'captions': {
         const url = msg.url;
         this.handlers.captions?.({
+          id: `yt:${msg.videoId}:${msg.lang}:${msg.auto ? 'asr' : 'std'}`,
           videoId: msg.videoId,
           lang: msg.lang.split('-')[0] ?? '',
           cues: parseTimedText(msg.body, msg.auto),

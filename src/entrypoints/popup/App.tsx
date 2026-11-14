@@ -1,8 +1,12 @@
-import { DubSection } from './DubSection';
-import { LiveSection } from './LiveSection';
-import { SubtitleSection } from './SubtitleSection';
-import { TranslationSection } from './TranslationSection';
+import { Tabs } from './controls';
+import { DubTab } from './DubTab';
+import { LiveTab } from './LiveTab';
+import { SubtitleTab } from './SubtitleTab';
+import { LanguageBar, TranslationTab } from './TranslationTab';
 import { useSettings } from './useSettings';
+import { VoiceTab } from './VoiceTab';
+
+type TabId = 'translation' | 'subtitles' | 'dub' | 'voice' | 'audio';
 
 export default function App() {
   const [s, set] = useSettings();
@@ -19,10 +23,17 @@ export default function App() {
         </label>
       </header>
 
-      <TranslationSection s={s} set={set} />
-      <SubtitleSection s={s} set={set} />
-      <DubSection s={s} set={set} />
-      <LiveSection />
+      <LanguageBar s={s} set={set} />
+
+      <Tabs<TabId>
+        tabs={[
+          { id: 'translation', label: 'Traducción', render: () => <TranslationTab s={s} set={set} /> },
+          { id: 'subtitles', label: 'Subtítulos', render: () => <SubtitleTab s={s} set={set} /> },
+          { id: 'dub', label: 'Doblaje', dot: s.dub, render: () => <DubTab s={s} set={set} /> },
+          { id: 'voice', label: 'Voz', render: () => <VoiceTab s={s} set={set} /> },
+          { id: 'audio', label: 'Audio', render: () => <LiveTab /> },
+        ]}
+      />
     </main>
   );
 }

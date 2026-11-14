@@ -34,9 +34,17 @@ export interface Settings {
   originalColor: string;
 
   // --- Doblaje ---
-  /** Lee la traducción en voz alta con una voz del sistema (gratis, local). */
+  /** Lee la traducción en voz alta (gratis, local). */
   dub: boolean;
-  /** Nombre de la voz; '' = la mejor voz local del idioma destino. */
+  /**
+   * neural → Piper: voz neuronal en tu equipo, genera el audio por adelantado
+   *          (mejor sincronización). Se descarga una vez (~60 MB por voz).
+   * system → voces del sistema operativo vía chrome.tts (sin descargas).
+   */
+  dubEngine: 'neural' | 'system';
+  /** Voz de Piper; '' = la recomendada para el idioma destino. */
+  neuralVoice: string;
+  /** Voz del sistema; '' = la mejor voz local del idioma destino. */
   dubVoice: string;
   /** Modo sincronización (ver dub-sync.ts). Desactivado = manual. */
   dubSync: boolean;
@@ -66,6 +74,8 @@ export const DEFAULT_SETTINGS: Settings = {
   originalColor: '#d8d8d8',
 
   dub: false,
+  dubEngine: 'neural',
+  neuralVoice: '',
   dubVoice: '',
   dubSync: true,
   dubRate: 1,

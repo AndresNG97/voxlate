@@ -30,3 +30,25 @@ export function firstCueAfter(cues: Cue[], ms: number): number {
   }
   return lo;
 }
+
+/**
+ * Orden en el que traducir una pista entera: primero desde `from` hasta el
+ * final (lo que se va a ver) y después lo anterior (por si vuelve atrás).
+ */
+export function translationOrder(total: number, from: number): number[] {
+  const start = Math.min(Math.max(0, from), total);
+  const order: number[] = [];
+  for (let i = start; i < total; i++) order.push(i);
+  for (let i = 0; i < start; i++) order.push(i);
+  return order;
+}
+
+/** Huella corta del contenido de una pista: si YouTube cambia los subtítulos, cambia. */
+export function cuesFingerprint(cues: Cue[]): string {
+  let h = 5381;
+  for (const c of cues) {
+    const s = `${c.start}|${c.text}\n`;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return `${cues.length.toString(36)}-${(h >>> 0).toString(36)}`;
+}

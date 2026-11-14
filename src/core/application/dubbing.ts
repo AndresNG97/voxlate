@@ -14,6 +14,8 @@
  * - Respeta los cambios de volumen y velocidad que haga el usuario.
  * - current() dice qué frase está sonando, para que los subtítulos la
  *   mantengan en pantalla mientras se lee.
+ * - Si la voz sabe generar audio por adelantado (Piper), preload() prepara las
+ *   frases que vienen y la fórmula usa su duración exacta en vez de estimarla.
  *
  * No sabe nada de Chrome ni de YouTube: habla con SpeechSynthesizerPort y MediaElementPort.
  */
@@ -94,6 +96,11 @@ export class DubbingService {
   private userRate: number;
   private lastError = '';
   private readonly unsubscribe: (() => void)[];
+  /** Duración exacta (a velocidad 1) de los audios ya preparados, por id. */
+  private readonly durations = new Map<string, number>();
+  /** Frases que queremos tener preparadas, por orden de prioridad. */
+  private wanted: DubCue[] = [];
+  private preloading = false;
 
   constructor(private readonly deps: DubbingDeps) {
     this.userVolume = deps.media.volume;
@@ -160,6 +167,17 @@ export class DubbingService {
     if (this.enabled && this.deps.options().sync) this.restoreRate();
   }
 
+  /**
+   * Pide tener preparadas estas frases (las próximas, en orden). Sustituye a
+   * la lista anterior, así tras un salto se prioriza la nueva zona.
+   */
+  preload(cues: DubCue[]) {
+    if (!this.enabled || !this.deps.speech.prepare) return;
+    const o = this.deps.options();
+    this.wanted = cues.filter((c) => c.text && !this.durations.has(this.clipId(o, c.text)));
+    void this.runPreload();
+  }
+
   pause() {
     if (this.enabled) this.deps.speech.pause();
   }
@@ -174,6 +192,32 @@ export class DubbingService {
     return `${o.lang}|${o.voiceName}`;
   }
 
+  /** Id del audio de una frase con la voz actual (lo comparten preload y speak). */
+  private clipId(o: DubOptions, text: string) {
+    return `${o.voiceName}|${text}`;
+  }
+
+  private async runPreload() {
+    const prepare = this.deps.speech.prepare?.bind(this.deps.speech);
+    if (this.preloading || !prepare) return;
+    this.preloading = true;
+    try {
+      while (this.enabled) {
+        const cue = this.wanted.shift();
+        if (!cue) break;
+        const o = this.deps.options();
+        const id = this.clipId(o, cue.text);
+        if (this.durations.has(id)) continue;
+        const res = await prepare({ id, text: cue.text, lang: o.lang, voiceName: o.voiceName });
+        this.durations.set(res.id, res.durationMs);
+      }
+    } catch (e) {
+      this.reportError(e instanceof Error ? e.message : String(e));
+    } finally {
+      this.preloading = false;
+    }
+  }
+
   private speak(cue: DubCue) {
     this.lastKey = cue.key;
     const o = this.deps.options();
@@ -183,6 +227,9 @@ export class DubbingService {
     const queued = this.queue.length > 0;
     const now = Date.now();
     const c = this.deps.calibration.get(this.voiceKey(o));
+    const id = this.clipId(o, cue.text);
+    // Duración exacta si el audio ya está preparado (Piper); si no, se estima con c.
+    const exactMs = this.durations.get(id);
 
     let voiceRate = o.rate;
     if (o.sync) {
@@ -195,6 +242,7 @@ export class DubbingService {
         chars: cue.text.length,
         windowSec: (windowEnd - cue.start) / 1000 - lagSec * this.userRate,
         charsPerSec: c,
+        speechSec: exactMs !== undefined ? exactMs / 1000 : undefined,
         baseVoiceRate: o.rate,
         baseVideoRate: this.userRate,
       });
@@ -202,7 +250,7 @@ export class DubbingService {
       this.setRate(result.videoRate);
     }
 
-    const speechMs = (cue.text.length / (c * voiceRate)) * 1000;
+    const speechMs = exactMs !== undefined ? exactMs / voiceRate : (cue.text.length / (c * voiceRate)) * 1000;
     this.speechEndsAt = Math.max(now, this.speechEndsAt) + speechMs;
 
     const gen = this.gen;
@@ -210,11 +258,18 @@ export class DubbingService {
     // Red de seguridad por si no llega la respuesta (p. ej. se reinicia el service worker).
     const timeoutMs = Math.max(8000, this.speechEndsAt - now + speechMs + 4000);
     withTimeout(
-      this.deps.speech.speak({ text: cue.text, lang: o.lang, voiceName: o.voiceName, rate: voiceRate, enqueue: queued }),
+      this.deps.speech.speak({
+        id: this.deps.speech.prepare ? id : undefined,
+        text: cue.text,
+        lang: o.lang,
+        voiceName: o.voiceName,
+        rate: voiceRate,
+        enqueue: queued,
+      }),
       timeoutMs,
     )
       .then((res) => this.onSpoken(res, o, cue, voiceRate))
-      .catch(() => {})
+      .catch((e: unknown) => this.reportError(e instanceof Error ? e.message : String(e)))
       .finally(() => {
         if (gen !== this.gen) return;
         this.queue.shift();
