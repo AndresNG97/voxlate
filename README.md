@@ -148,5 +148,17 @@ public/
 ## Licencia y privacidad
 
 - Voxlate se publica bajo la **GPL v3 o posterior** ([LICENSE](LICENSE)). Tiene que ser GPL porque incluye espeak-ng (GPL-3.0) dentro del fonetizador de Piper.
+
+  ```
+  Voxlate — subtítulos traducidos y doblaje para vídeos de YouTube
+  Copyright (C) 2026 AndresNG97
+
+  This program is free software: you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, either version 3 of the License, or (at your option) any later
+  version. This program is distributed WITHOUT ANY WARRANTY; see the LICENSE
+  file for details.
+  ```
+
 - Componentes de terceros y licencias de las voces: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - Política de privacidad (es el enlace que pide la Chrome Web Store): [PRIVACY.md](PRIVACY.md).
