@@ -13,6 +13,7 @@ import type {
   SpeechSynthesizerPort,
 } from '@/core/ports/speech-synthesizer';
 import { SYNC_LIMITS } from '@/core/domain/dub-sync';
+import { markUsedAndPrune } from './piper-storage';
 import { pickNeuralVoice } from './piper-voices';
 
 /** Rutas (dentro de la extensión) del motor ONNX y del fonetizador de Piper. */
@@ -210,10 +211,14 @@ export class PiperSynthesizer implements SpeechSynthesizerPort {
           if (p.total && !p.url.startsWith('tts://')) this.onDownloadProgress?.(p.loaded / p.total);
         },
       });
-      this.session.catch(() => {
-        this.session = null;
-        this.voiceId = '';
-      });
+      this.session.then(
+        // Voz lista: la apuntamos como usada y borramos las descargas que sobran.
+        () => markUsedAndPrune(voice).catch((e: unknown) => console.warn('[voxlate] limpieza de voces', e)),
+        () => {
+          this.session = null;
+          this.voiceId = '';
+        },
+      );
     }
     return this.session;
   }

@@ -80,6 +80,16 @@ popup (clic) → tabCapture.getMediaStreamId → background.ts
 
 Para probarlo, copia `.env.example` en `.env.local` y rellena `WXT_DEEPGRAM_DEV_KEY` (**solo en local**). En producción hay que usar `WXT_STT_TOKEN_URL`, que apunta a un endpoint de tu backend. Ese endpoint llama a `POST https://api.deepgram.com/v1/auth/grant` con tu API key y devuelve `{ access_token }`. Puede vivir en el mismo gateway en Rust que Sinelow.
 
+## Qué se guarda y cuándo se limpia
+
+| Qué | Dónde | Limpieza |
+|---|---|---|
+| Traducciones por vídeo | `chrome.storage.local` (~100 KB por hora de vídeo) | Máx. 40 vídeos; caducan a los 30 días sin usarse; si se llena el espacio se libera la mitad más antigua. Botón para borrarlas en el popup |
+| Voces de Piper (~60 MB cada una) | OPFS de la extensión | Se conservan máx. 2 (la que se usa y la anterior); lista y botón para borrarlas en la pestaña Voz |
+| Audio generado del doblaje | Memoria del offscreen | Máx. 250 frases; desaparece al cerrarse |
+| Probabilidades de voz (Silero) | Memoria de la pestaña | Se olvida lo que queda a más de 10 min |
+| Modelos de traducción de Chrome | Los gestiona Chrome | — |
+
 ## Arquitectura (hexagonal)
 
 La lógica vive en `core/` y no sabe nada de Chrome, YouTube ni Deepgram: habla con

@@ -2,10 +2,17 @@
 import { useEffect, useState } from 'react';
 import type { RuntimeMessage } from '@/adapters/chrome/messages';
 import { voicesFor, type TtsVoice } from '@/adapters/chrome/tts-voices';
-import { neuralVoicesFor, type NeuralVoice } from '@/adapters/piper/piper-voices';
+import {
+  listStoredVoices,
+  MAX_STORED_VOICES,
+  removeStoredVoice,
+  type StoredVoice,
+} from '@/adapters/piper/piper-storage';
+import { neuralVoiceLabel, neuralVoicesFor, type NeuralVoice } from '@/adapters/piper/piper-voices';
 import type { Settings } from '@/core/domain/settings';
 import type { SpeakResult } from '@/core/ports/speech-synthesizer';
 import { Card, Segmented } from './controls';
+import { formatBytes } from './format';
 import type { SetSettings } from './useSettings';
 
 export function VoiceTab({ s, set }: { s: Settings; set: SetSettings }) {
@@ -37,6 +44,8 @@ export function VoiceTab({ s, set }: { s: Settings; set: SetSettings }) {
       </Card>
 
       {usesSystem ? <SystemVoiceCard s={s} set={set} /> : <NeuralVoiceCard s={s} set={set} voices={neural} />}
+
+      <DownloadedVoicesCard />
     </>
   );
 }
@@ -129,6 +138,34 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
         </div>
       )}
       {error && <p className="model warn">{error}</p>}
+    </Card>
+  );
+}
+
+/** Voces neuronales descargadas: cuánto ocupan y botón para borrarlas. */
+function DownloadedVoicesCard() {
+  const [voices, setVoices] = useState<StoredVoice[] | null>(null);
+  const refresh = () => listStoredVoices().then(setVoices, () => setVoices([]));
+  useEffect(() => void refresh(), []);
+  if (!voices?.length) return null;
+
+  const total = voices.reduce((n, v) => n + v.bytes, 0);
+  return (
+    <Card title={`Voces descargadas · ${formatBytes(total)}`}>
+      {voices.map((v) => (
+        <div className="row-inline" key={v.id}>
+          <span>
+            {neuralVoiceLabel(v.id)} <span className="hint">· {formatBytes(v.bytes)}</span>
+          </span>
+          <button className="link small" onClick={() => removeStoredVoice(v.id).then(refresh)}>
+            Borrar
+          </button>
+        </div>
+      ))}
+      <p className="hint">
+        Se conservan como mucho {MAX_STORED_VOICES}: la que usas y la anterior. Las demás se borran solas; si vuelves
+        a usar una borrada, se descarga otra vez.
+      </p>
     </Card>
   );
 }

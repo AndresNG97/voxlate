@@ -5,6 +5,7 @@ import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
 import { Card, Segmented } from './controls';
+import { formatBytes } from './format';
 import type { SetSettings } from './useSettings';
 
 const translator = new ChromeTranslator();
@@ -37,6 +38,7 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
   const [model, setModel] = useState<TranslatorAvailability | 'checking'>('checking');
   const [progress, setProgress] = useState<number | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
+  const [savedBytes, setSavedBytes] = useState(0);
 
   useEffect(() => {
     setModel('checking');
@@ -45,6 +47,7 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
 
   useEffect(() => {
     cache.count().then(setSaved, () => setSaved(0));
+    cache.bytes().then(setSavedBytes, () => {});
   }, []);
 
   async function downloadModel() {
@@ -63,6 +66,7 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
   async function clearSaved() {
     await cache.clear();
     setSaved(0);
+    setSavedBytes(0);
   }
 
   return (
@@ -87,7 +91,10 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
       <Card title="Traducciones guardadas">
         <p className="hint">
           Cada vídeo se traduce entero una vez y se guarda, así al volver a verlo es instantáneo
-          {saved !== null && ` (${saved} ${saved === 1 ? 'vídeo' : 'vídeos'} guardados)`}.
+          {saved !== null && ` (${saved} ${saved === 1 ? 'vídeo' : 'vídeos'}, ${formatBytes(savedBytes)})`}.
+        </p>
+        <p className="hint">
+          Se limpian solas: como mucho se guardan los 40 últimos vídeos y se borran las que llevan 30 días sin usarse.
         </p>
         <button className="link small" onClick={clearSaved} disabled={!saved}>
           Borrar traducciones guardadas

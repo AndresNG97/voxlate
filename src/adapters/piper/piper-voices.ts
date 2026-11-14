@@ -51,6 +51,15 @@ export function neuralVoicesFor(lang: string): NeuralVoice[] {
   return VOICES[baseLang(lang)] ?? [];
 }
 
+/** Nombre legible de una voz por su id (o el id si no está en el catálogo). */
+export function neuralVoiceLabel(id: string): string {
+  for (const list of Object.values(VOICES)) {
+    const v = list.find((x) => x.id === id);
+    if (v) return v.label;
+  }
+  return id;
+}
+
 /** La voz pedida si es de ese idioma; si no, la recomendada (la primera). */
 export function pickNeuralVoice(lang: string, preferred: string): string | undefined {
   const list = neuralVoicesFor(lang);

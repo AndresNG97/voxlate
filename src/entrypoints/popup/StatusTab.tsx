@@ -8,10 +8,12 @@ import { useEffect, useState } from 'react';
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
 import type { LiveState, PageStatus, RuntimeMessage } from '@/adapters/chrome/messages';
 import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
+import { listStoredVoices } from '@/adapters/piper/piper-storage';
 import { neuralVoicesFor } from '@/adapters/piper/piper-voices';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
 import { Card } from './controls';
+import { formatBytes } from './format';
 import { activeYoutubeTabId } from './useActiveTab';
 
 const translator = new ChromeTranslator();
@@ -36,6 +38,7 @@ const langName = (code: string) =>
 export function StatusTab({ s }: { s: Settings }) {
   const [model, setModel] = useState<TranslatorAvailability | 'checking'>('checking');
   const [saved, setSaved] = useState<number | null>(null);
+  const [space, setSpace] = useState<{ translations: number; voices: number; voiceCount: number } | null>(null);
   const [live, setLive] = useState<LiveState | null>(null);
   const [page, setPage] = useState<PageStatus | null | 'no-youtube' | 'no-response'>(null);
 
@@ -47,6 +50,11 @@ export function StatusTab({ s }: { s: Settings }) {
     let alive = true;
     async function refresh() {
       cache.count().then((n) => alive && setSaved(n), () => {});
+      Promise.all([cache.bytes(), listStoredVoices()]).then(
+        ([translations, voices]) =>
+          alive && setSpace({ translations, voices: voices.reduce((n, v) => n + v.bytes, 0), voiceCount: voices.length }),
+        () => {},
+      );
       browser.runtime
         .sendMessage({ type: 'live:get-status' } satisfies RuntimeMessage)
         .then((st: LiveState) => alive && setLive(st), () => {});
@@ -98,6 +106,19 @@ export function StatusTab({ s }: { s: Settings }) {
           label="Traducciones guardadas"
           value={saved === null ? '…' : `${saved} ${saved === 1 ? 'vídeo' : 'vídeos'}`}
           tone={saved ? 'on' : 'off'}
+        />
+        <Row
+          label="Espacio usado"
+          value={
+            !space
+              ? '…'
+              : `Traducciones ${formatBytes(space.translations)} · ${
+                  space.voiceCount
+                    ? `${space.voiceCount} ${space.voiceCount === 1 ? 'voz' : 'voces'} ${formatBytes(space.voices)}`
+                    : 'sin voces descargadas'
+                }`
+          }
+          tone={space && (space.translations || space.voices) ? 'on' : 'off'}
         />
         <Row
           label="Subtítulos en pantalla"
