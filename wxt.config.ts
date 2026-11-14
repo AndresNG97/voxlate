@@ -59,9 +59,12 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'Voxlate — Subtítulos traducidos y doblaje',
+    // Nombre y resumen traducidos: public/_locales/<idioma>/messages.json.
+    // Chrome y la Chrome Web Store muestran el del idioma del usuario (inglés por defecto).
+    name: '__MSG_extName__',
     short_name: 'Voxlate',
-    description: 'Traduce y dobla los vídeos de YouTube a tu idioma, en tu equipo y gratis.',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     // El traductor local de Chrome (Translator API) existe desde Chrome 138.
     minimum_chrome_version: '138',
     // storage: ajustes y traducciones guardadas · offscreen: voz neuronal y

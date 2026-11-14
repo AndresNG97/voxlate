@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Voxlate — Subtítulos traducidos y doblaje",
+    "description": "Nombre de la extensión en Chrome y en la Chrome Web Store (máx. 75 caracteres)."
+  },
+  "extDescription": {
+    "message": "Traduce y dobla los vídeos de YouTube a tu idioma. Gratis, privado y procesado en tu propio equipo.",
+    "description": "Resumen corto en Chrome y en la Chrome Web Store (máx. 132 caracteres)."
+  }
+}

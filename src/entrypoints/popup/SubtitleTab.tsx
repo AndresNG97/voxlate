@@ -1,5 +1,6 @@
 /** Pestaña "Subtítulos": qué se ve, dónde, a qué tamaño y con qué fondo. */
 import { DEFAULT_SETTINGS, type Settings } from '@/core/domain/settings';
+import { t } from '@/i18n';
 import { Card, Check, Range, Segmented } from './controls';
 import type { SetSettings } from './useSettings';
 
@@ -21,47 +22,47 @@ export function SubtitleTab({ s, set }: { s: Settings; set: SetSettings }) {
 
   return (
     <>
-      <Card title="Qué mostrar">
+      <Card title={t.subtitles.whatTitle}>
         <div className="row-inline">
           <Check checked={s.showTranslated} onChange={(v) => set({ showTranslated: v })}>
-            Traducción
+            {t.subtitles.translated}
           </Check>
           <input
             type="color"
             value={s.translatedColor}
             onChange={(e) => set({ translatedColor: e.target.value })}
-            aria-label="Color de la traducción"
+            aria-label={t.subtitles.translatedColor}
           />
         </div>
         <div className="row-inline">
           <Check checked={s.showOriginal} onChange={(v) => set({ showOriginal: v })}>
-            Original
+            {t.subtitles.original}
           </Check>
           <input
             type="color"
             value={s.originalColor}
             onChange={(e) => set({ originalColor: e.target.value })}
-            aria-label="Color del original"
+            aria-label={t.subtitles.originalColor}
           />
         </div>
         {s.showTranslated && s.showOriginal && (
           <Check checked={s.originalFirst} onChange={(v) => set({ originalFirst: v })}>
-            Original encima de la traducción
+            {t.subtitles.originalFirst}
           </Check>
         )}
       </Card>
 
-      <Card title="Posición y tamaño">
+      <Card title={t.subtitles.placeTitle}>
         <Segmented
           value={s.subtitlePosition}
           options={[
-            ['bottom', 'Abajo'],
-            ['top', 'Arriba'],
+            ['bottom', t.subtitles.bottom],
+            ['top', t.subtitles.top],
           ]}
           onChange={(subtitlePosition) => set({ subtitlePosition })}
         />
         <Range
-          label="Distancia al borde"
+          label={t.subtitles.offset}
           value={s.subtitleOffset}
           display={`${s.subtitleOffset}%`}
           min={0}
@@ -70,7 +71,7 @@ export function SubtitleTab({ s, set }: { s: Settings; set: SetSettings }) {
           onChange={(subtitleOffset) => set({ subtitleOffset })}
         />
         <Range
-          label="Tamaño del texto"
+          label={t.subtitles.size}
           value={s.fontScale}
           display={`${s.fontScale}%`}
           min={70}
@@ -80,13 +81,13 @@ export function SubtitleTab({ s, set }: { s: Settings; set: SetSettings }) {
         />
       </Card>
 
-      <Card title="Fondo">
+      <Card title={t.subtitles.bgTitle}>
         <Check checked={s.subtitleBackground} onChange={(v) => set({ subtitleBackground: v })}>
-          Fondo detrás del texto
+          {t.subtitles.bg}
         </Check>
         {s.subtitleBackground ? (
           <Range
-            label="Opacidad"
+            label={t.subtitles.opacity}
             value={s.subtitleBgOpacity}
             display={`${s.subtitleBgOpacity}%`}
             min={10}
@@ -95,12 +96,12 @@ export function SubtitleTab({ s, set }: { s: Settings; set: SetSettings }) {
             onChange={(subtitleBgOpacity) => set({ subtitleBgOpacity })}
           />
         ) : (
-          <p className="hint">Sin fondo, el texto lleva un contorno oscuro para que se lea.</p>
+          <p className="hint">{t.subtitles.noBgHint}</p>
         )}
       </Card>
 
       <button className="link small" onClick={reset}>
-        Restablecer estilo
+        {t.subtitles.reset}
       </button>
     </>
   );

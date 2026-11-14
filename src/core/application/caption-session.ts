@@ -19,6 +19,7 @@ import type { TranslationCachePort } from '../ports/translation-cache';
 import type { VoiceActivityPort } from '../ports/voice-activity';
 import { refineWithVoice } from '../domain/timing';
 import type { TranslatorPort } from '../ports/translator';
+import { t } from '../../i18n';
 import type { DubbingService, DubCue } from './dubbing';
 
 export interface CaptionTrack {
@@ -261,19 +262,19 @@ export class CaptionSession {
     if (state === 'available') return this.pump();
 
     if (state === 'downloadable' || state === 'downloading') {
-      this.deps.view.setStatus(`Falta el traductor ${track.lang} → ${s.targetLang} (se descarga una vez)`, {
-        label: 'Descargar',
+      this.deps.view.setStatus(t.page.missingModel(track.lang, s.targetLang), {
+        label: t.page.download,
         onClick: async () => {
-          this.status('Descargando modelo… 0%');
+          this.status(t.page.downloadingModel(0));
           try {
             // El clic da la "activación de usuario" que Chrome exige para descargar el modelo.
             await translator.prepare(track.lang, s.targetLang, (f) =>
-              this.status(`Descargando modelo… ${Math.round(f * 100)}%`),
+              this.status(t.page.downloadingModel(Math.round(f * 100))),
             );
             this.status(null);
             void this.pump();
           } catch {
-            void this.usePlatformTranslation('No se pudo descargar el modelo; uso la traducción de YouTube.');
+            void this.usePlatformTranslation(t.page.modelDownloadFailed);
           }
         },
       });
@@ -281,7 +282,7 @@ export class CaptionSession {
     }
 
     // 'unavailable' | 'unsupported' (Chrome antiguo, móvil, hardware insuficiente…)
-    return this.usePlatformTranslation('Traductor de Chrome no disponible; uso la traducción de YouTube.');
+    return this.usePlatformTranslation(t.page.chromeUnavailable);
   }
 
   /**
@@ -345,7 +346,7 @@ export class CaptionSession {
   private async usePlatformTranslation(reason?: string) {
     const fetchTranslated = this.track?.fetchTranslated;
     if (!fetchTranslated) {
-      this.status('No se pudo traducir este vídeo.');
+      this.status(t.page.translateFailed);
       return;
     }
     try {
@@ -353,7 +354,7 @@ export class CaptionSession {
       this.status(reason ?? null, 5000);
       this.render();
     } catch (e) {
-      this.status('No se pudo traducir este vídeo.');
+      this.status(t.page.translateFailed);
       console.warn('[voxlate] platform translation', e);
     }
   }

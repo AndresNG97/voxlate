@@ -2,12 +2,17 @@ import type { SubtitleStyle } from './subtitles';
 
 export type Engine = 'chrome' | 'youtube';
 
+/** Idioma de la interfaz de la extensión. auto = el de Chrome. */
+export type UiLanguage = 'auto' | 'es' | 'en';
+
 /**
  * Ajustes del usuario. Plano a propósito: se guardan tal cual y se mezclan
  * con DEFAULT_SETTINGS, así los campos nuevos reciben su valor por defecto.
  */
 export interface Settings {
   enabled: boolean;
+  /** Idioma de los menús y avisos de la extensión (no el de la traducción). */
+  uiLanguage: UiLanguage;
   /** Idioma del vídeo. */
   sourceLang: string;
   /** Idioma al que traducimos. */
@@ -63,6 +68,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
+  uiLanguage: 'auto',
   sourceLang: 'en',
   targetLang: 'es',
   engine: 'chrome',
@@ -108,36 +114,8 @@ export function subtitleStyleOf(s: Settings): SubtitleStyle {
   };
 }
 
-/** Idiomas del vídeo que ofrece el popup. */
-export const SOURCE_LANGUAGES: [code: string, label: string][] = [
-  ['en', 'Inglés'],
-  ['es', 'Español'],
-  ['fr', 'Francés'],
-  ['de', 'Alemán'],
-  ['pt', 'Portugués'],
-  ['it', 'Italiano'],
-  ['ja', 'Japonés'],
-  ['ko', 'Coreano'],
-];
+/** Idiomas del vídeo que ofrece el popup (el nombre visible sale de languageName() en @/i18n). */
+export const SOURCE_LANGUAGES: readonly string[] = ['en', 'es', 'fr', 'de', 'pt', 'it', 'ja', 'ko'];
 
 /** Idiomas destino (códigos BCP-47 que entiende el traductor de Chrome). */
-export const TARGET_LANGUAGES: [code: string, label: string][] = [
-  ['es', 'Español'],
-  ['en', 'Inglés'],
-  ['fr', 'Francés'],
-  ['de', 'Alemán'],
-  ['it', 'Italiano'],
-  ['pt', 'Portugués'],
-  ['ca', 'Catalán'],
-  ['nl', 'Neerlandés'],
-  ['pl', 'Polaco'],
-  ['ru', 'Ruso'],
-  ['uk', 'Ucraniano'],
-  ['tr', 'Turco'],
-  ['ar', 'Árabe'],
-  ['hi', 'Hindi'],
-  ['ja', 'Japonés'],
-  ['ko', 'Coreano'],
-  ['zh', 'Chino (simplificado)'],
-  ['zh-Hant', 'Chino (tradicional)'],
-];
+export const TARGET_LANGUAGES: readonly string[] = ['es', 'en', 'fr', 'de', 'it', 'pt', 'ca', 'nl', 'pl', 'ru', 'uk', 'tr', 'ar', 'hi', 'ja', 'ko', 'zh', 'zh-Hant'];

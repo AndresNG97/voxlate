@@ -1,6 +1,7 @@
 /** Pestaña "Audio": modo audio (beta) para vídeos sin subtítulos en cualquier web. */
 import { useEffect, useState } from 'react';
 import type { LiveState, RuntimeMessage } from '@/adapters/chrome/messages';
+import { t } from '@/i18n';
 import { Card } from './controls';
 
 export function LiveTab() {
@@ -36,18 +37,15 @@ export function LiveTab() {
   }
 
   return (
-    <Card title="Modo audio (beta)">
-      <p className="hint">
-        Para vídeos sin subtítulos, en cualquier web: escucha el audio de la pestaña, lo transcribe en tiempo real y lo
-        traduce. Ahora mismo usa Deepgram, que necesita una clave.
-      </p>
+    <Card title={t.live.title}>
+      <p className="hint">{t.live.hint}</p>
       {live.status === 'idle' || live.status === 'error' ? (
         <button className="primary" onClick={start}>
-          Traducir el audio de esta pestaña
+          {t.live.start}
         </button>
       ) : (
         <button className="danger" onClick={stop}>
-          {live.status === 'connecting' ? 'Conectando…' : 'Detener'}
+          {live.status === 'connecting' ? t.live.connecting : t.live.stop}
         </button>
       )}
       {(error || live.error) && <p className="error">{error ?? live.error}</p>}

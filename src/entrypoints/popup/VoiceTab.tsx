@@ -11,6 +11,7 @@ import {
 import { neuralVoiceLabel, neuralVoicesFor, type NeuralVoice } from '@/adapters/piper/piper-voices';
 import type { Settings } from '@/core/domain/settings';
 import type { SpeakResult } from '@/core/ports/speech-synthesizer';
+import { t } from '@/i18n';
 import { Card, Segmented } from './controls';
 import { formatBytes } from './format';
 import type { SetSettings } from './useSettings';
@@ -22,24 +23,22 @@ export function VoiceTab({ s, set }: { s: Settings; set: SetSettings }) {
 
   return (
     <>
-      {!s.dub && <p className="notice">El doblaje está desactivado. Actívalo en la pestaña Doblaje para oír la voz en los vídeos.</p>}
+      {!s.dub && <p className="notice">{t.voice.dubOff}</p>}
 
-      <Card title="Tipo de voz">
+      <Card title={t.voice.typeTitle}>
         <Segmented
           value={s.dubEngine}
           options={[
-            ['neural', 'Neuronal'],
-            ['system', 'Del sistema'],
+            ['neural', t.voice.neural],
+            ['system', t.voice.system],
           ]}
           onChange={(dubEngine) => set({ dubEngine })}
         />
         <p className="hint">
-          {s.dubEngine === 'neural'
-            ? 'Piper, en tu equipo: suena natural y prepara el audio por adelantado, así encaja mejor con el vídeo. Se descarga una vez (~60 MB por voz).'
-            : 'Las voces que trae tu sistema operativo: sin descargas, pero suenan más robóticas.'}
+          {s.dubEngine === 'neural' ? t.voice.neuralHint : t.voice.systemHint}
         </p>
         {s.dubEngine === 'neural' && !neural.length && (
-          <p className="model warn">No hay voz neuronal para este idioma: se usa la voz del sistema.</p>
+          <p className="model warn">{t.voice.noNeuralForLang}</p>
         )}
       </Card>
 
@@ -59,10 +58,14 @@ const SAMPLE_TEXT: Record<string, string> = {
   de: 'Hallo, so werden deine Videos klingen.',
   it: 'Ciao, ecco come suoneranno i tuoi video.',
   pt: 'Olá, é assim que os teus vídeos vão soar.',
+  ca: 'Hola, així sonarà el doblatge dels teus vídeos.',
+  nl: 'Hallo, zo gaan je video’s klinken.',
+  pl: 'Cześć, tak będą brzmieć twoje filmy.',
+  ru: 'Привет, так будут звучать твои видео.',
+  uk: 'Привіт, так звучатимуть твої відео.',
+  tr: 'Merhaba, videoların böyle duyulacak.',
+  zh: '你好，你的视频听起来会是这样。',
 };
-
-const ENGINE_DOWN =
-  'El motor de voz no responde. Recarga la extensión; si sigue igual, mira la consola de offscreen.html en chrome://extensions.';
 
 /** Selector de voz de Piper + botón para escucharla (la primera vez la descarga). */
 function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralVoice[] }) {
@@ -85,7 +88,7 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
     setState('loading');
     try {
       const ready = await browser.runtime.sendMessage({ type: 'neural:ensure' } satisfies RuntimeMessage);
-      if (ready !== true) throw new Error(ENGINE_DOWN);
+      if (ready !== true) throw new Error(t.voice.engineDown);
       const lang = s.targetLang.split('-')[0]!;
       const promise = browser.runtime.sendMessage({
         type: 'neural:speak',
@@ -100,8 +103,8 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
       } satisfies RuntimeMessage) as Promise<SpeakResult | undefined>;
       setState('playing');
       const res = await promise;
-      if (!res) throw new Error(ENGINE_DOWN);
-      if (!res.ok && res.event !== 'interrupted') setError(res.error ?? 'No se pudo reproducir la voz.');
+      if (!res) throw new Error(t.voice.engineDown);
+      if (!res.ok && res.event !== 'interrupted') setError(res.error ?? t.voice.playFailed);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -111,14 +114,14 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
   }
 
   return (
-    <Card title="Voz neuronal">
+    <Card title={t.voice.neuralTitle}>
       <div className="row-inline">
         <select
           value={voices.some((v) => v.id === s.neuralVoice) ? s.neuralVoice : ''}
           onChange={(e) => set({ neuralVoice: e.target.value })}
-          aria-label="Voz neuronal"
+          aria-label={t.voice.neuralTitle}
         >
-          <option value="">Recomendada: {voices[0]!.label.split(' (')[0]}</option>
+          <option value="">{t.voice.recommended(voices[0]!.name)}</option>
           {voices.map((v) => (
             <option key={v.id} value={v.id}>
               {v.label}
@@ -126,7 +129,7 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
           ))}
         </select>
         <button className="small-btn" onClick={listen} disabled={state !== 'idle'}>
-          {state === 'idle' ? '▶ Escuchar' : state === 'loading' ? 'Cargando…' : 'Sonando…'}
+          {state === 'idle' ? t.voice.listen : state === 'loading' ? t.voice.loading : t.voice.playing}
         </button>
       </div>
       {progress !== null && progress < 1 && (
@@ -134,7 +137,7 @@ function NeuralVoiceCard(props: { s: Settings; set: SetSettings; voices: NeuralV
           <div className="bar">
             <div style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
-          Descargando voz… {Math.round(progress * 100)}%
+          {t.voice.downloading(Math.round(progress * 100))}
         </div>
       )}
       {error && <p className="model warn">{error}</p>}
@@ -151,21 +154,18 @@ function DownloadedVoicesCard() {
 
   const total = voices.reduce((n, v) => n + v.bytes, 0);
   return (
-    <Card title={`Voces descargadas · ${formatBytes(total)}`}>
+    <Card title={t.voice.downloadedTitle(formatBytes(total))}>
       {voices.map((v) => (
         <div className="row-inline" key={v.id}>
           <span>
             {neuralVoiceLabel(v.id)} <span className="hint">· {formatBytes(v.bytes)}</span>
           </span>
           <button className="link small" onClick={() => removeStoredVoice(v.id).then(refresh)}>
-            Borrar
+            {t.voice.delete}
           </button>
         </div>
       ))}
-      <p className="hint">
-        Se conservan como mucho {MAX_STORED_VOICES}: la que usas y la anterior. Las demás se borran solas; si vuelves
-        a usar una borrada, se descarga otra vez.
-      </p>
+      <p className="hint">{t.voice.keptHint(MAX_STORED_VOICES)}</p>
     </Card>
   );
 }
@@ -211,26 +211,25 @@ function SystemVoiceCard({ s, set }: { s: Settings; set: SetSettings }) {
     <button
       className="link"
       onClick={async () => setOpenFailed(!(await openWindowsVoiceSettings()))}
-      title="Abre Configuración → Hora e idioma → Voz"
+      title={t.voice.openSettingsTitle}
     >
-      {voices?.length ? 'Añadir más voces de Windows' : 'Abrir la configuración de voz'}
+      {voices?.length ? t.voice.addWindowsVoices : t.voice.openVoiceSettings}
     </button>
   );
 
   return (
-    <Card title="Voz del sistema">
+    <Card title={t.voice.systemTitle}>
       {voices && !voices.length ? (
         <p className="model warn">
-          No hay voces para este idioma.{' '}
-          {isWindows ? 'Añade una en la configuración de voz de Windows.' : 'Instala una voz en tu sistema.'}{' '}
+          {t.voice.noSystemVoices} {isWindows ? t.voice.addInWindows : t.voice.installVoice}{' '}
           {settingsButton}
         </p>
       ) : (
-        <select value={selected} onChange={(e) => set({ dubVoice: e.target.value })} aria-label="Voz del sistema">
+        <select value={selected} onChange={(e) => set({ dubVoice: e.target.value })} aria-label={t.voice.systemTitle}>
           {/* "Microsoft Helena - Spanish (Spain)" → "Microsoft Helena", para que quepa. */}
-          <option value="">Automática{local[0] ? `: ${(local[0].voiceName ?? '').split(' - ')[0]}` : ''}</option>
+          <option value="">{t.voice.automatic(local[0] ? (local[0].voiceName ?? '').split(' - ')[0]! : null)}</option>
           {local.length > 0 && (
-            <optgroup label="En tu equipo (sin conexión)">
+            <optgroup label={t.voice.localGroup}>
               {local.map((v) => (
                 <option key={v.voiceName} value={v.voiceName}>
                   {v.voiceName}
@@ -239,7 +238,7 @@ function SystemVoiceCard({ s, set }: { s: Settings; set: SetSettings }) {
             </optgroup>
           )}
           {remote.length > 0 && (
-            <optgroup label="En línea (envían el texto a Google)">
+            <optgroup label={t.voice.remoteGroup}>
               {remote.map((v) => (
                 <option key={v.voiceName} value={v.voiceName}>
                   {v.voiceName}
@@ -251,9 +250,9 @@ function SystemVoiceCard({ s, set }: { s: Settings; set: SetSettings }) {
       )}
       {voices && voices.length > 0 && settingsButton && <div className="model">{settingsButton}</div>}
       {openFailed && (
-        <p className="model warn">No se pudo abrir. Ve a Configuración → Hora e idioma → Voz → Agregar voces.</p>
+        <p className="model warn">{t.voice.openFailed}</p>
       )}
-      {isWindows && <p className="hint">Si acabas de instalar una voz, reinicia Chrome para que aparezca.</p>}
+      {isWindows && <p className="hint">{t.voice.restartChrome}</p>}
     </Card>
   );
 }

@@ -12,8 +12,8 @@ import type { TranslationCachePort } from '@/core/ports/translation-cache';
 
 const PREFIX = 'tr:';
 const INDEX_KEY = 'tr-index';
-const MAX_ENTRIES = 40;
-const MAX_AGE_DAYS = 30;
+export const MAX_ENTRIES = 40;
+export const MAX_AGE_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Índice: cada entrada guardada con la última vez que se usó (más reciente primero). */

@@ -13,6 +13,7 @@ import type {
   SpeechSynthesizerPort,
 } from '@/core/ports/speech-synthesizer';
 import { SYNC_LIMITS } from '@/core/domain/dub-sync';
+import { t } from '@/i18n';
 import { markUsedAndPrune } from './piper-storage';
 import { pickNeuralVoice } from './piper-voices';
 
@@ -140,7 +141,7 @@ export class PiperSynthesizer implements SpeechSynthesizerPort {
       void this.playNext();
     };
     audio.onended = () => done({ ok: true, event: 'end' });
-    audio.onerror = () => done({ ok: false, event: 'error', error: 'No se pudo reproducir el audio' });
+    audio.onerror = () => done({ ok: false, event: 'error', error: t.errors.audioPlayback });
     if (!this.paused) await audio.play().catch((e: unknown) => done(errorResult(e)));
   }
 
@@ -226,7 +227,7 @@ export class PiperSynthesizer implements SpeechSynthesizerPort {
 
 class NoVoiceError extends Error {
   constructor(lang: string) {
-    super(`No hay voz neuronal para "${lang}"`);
+    super(t.errors.noNeuralVoice(lang));
   }
 }
 

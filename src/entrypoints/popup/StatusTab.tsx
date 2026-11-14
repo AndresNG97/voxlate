@@ -10,8 +10,9 @@ import type { LiveState, PageStatus, RuntimeMessage } from '@/adapters/chrome/me
 import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
 import { listStoredVoices } from '@/adapters/piper/piper-storage';
 import { neuralVoicesFor } from '@/adapters/piper/piper-voices';
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
+import type { Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
+import { languageName, t } from '@/i18n';
 import { Card } from './controls';
 import { formatBytes } from './format';
 import { activeYoutubeTabId } from './useActiveTab';
@@ -31,9 +32,6 @@ function Row({ label, value, tone }: { label: string; value: string; tone: Tone 
     </div>
   );
 }
-
-const langName = (code: string) =>
-  [...SOURCE_LANGUAGES, ...TARGET_LANGUAGES].find(([c]) => c === code)?.[1] ?? code;
 
 export function StatusTab({ s }: { s: Settings }) {
   const [model, setModel] = useState<TranslatorAvailability | 'checking'>('checking');
@@ -55,9 +53,11 @@ export function StatusTab({ s }: { s: Settings }) {
           alive && setSpace({ translations, voices: voices.reduce((n, v) => n + v.bytes, 0), voiceCount: voices.length }),
         () => {},
       );
-      browser.runtime
-        .sendMessage({ type: 'live:get-status' } satisfies RuntimeMessage)
-        .then((st: LiveState) => alive && setLive(st), () => {});
+      if (__LIVE_MODE__) {
+        browser.runtime
+          .sendMessage({ type: 'live:get-status' } satisfies RuntimeMessage)
+          .then((st: LiveState) => alive && setLive(st), () => {});
+      }
       const tabId = await activeYoutubeTabId();
       if (tabId === null) return alive && setPage('no-youtube');
       browser.tabs
@@ -73,107 +73,82 @@ export function StatusTab({ s }: { s: Settings }) {
   }, []);
 
   const neural = neuralVoicesFor(s.targetLang);
-  const neuralName = (neural.find((v) => v.id === s.neuralVoice) ?? neural[0])?.label;
+  const neuralName = (neural.find((v) => v.id === s.neuralVoice) ?? neural[0])?.label ?? '';
   const voiceFallsBack = s.dubEngine === 'neural' && !neural.length;
+  const st = t.status;
 
   return (
     <>
-      <Card title="Configuración">
-        <Row label="Extensión" value={s.enabled ? 'Activada' : 'Desactivada'} tone={s.enabled ? 'on' : 'off'} />
-        <Row label="Idiomas" value={`${langName(s.sourceLang)} → ${langName(s.targetLang)}`} tone="on" />
+      <Card title={st.configTitle}>
+        <Row label={st.extension} value={s.enabled ? t.on : t.off} tone={s.enabled ? 'on' : 'off'} />
+        <Row label={st.languages} value={`${languageName(s.sourceLang)} → ${languageName(s.targetLang)}`} tone="on" />
         <Row
-          label="Motor de traducción"
-          value={s.engine === 'chrome' ? 'Chrome (local)' : 'YouTube'}
+          label={st.engine}
+          value={s.engine === 'chrome' ? t.translation.engineChrome : t.translation.engineYoutube}
           tone={s.engine === 'chrome' && (model === 'unavailable' || model === 'unsupported') ? 'warn' : 'on'}
         />
         {s.engine === 'chrome' && (
-          <Row
-            label="Modelo de Chrome"
-            value={
-              {
-                checking: 'Comprobando…',
-                available: 'Listo, sin conexión',
-                downloadable: 'Hay que descargarlo',
-                downloading: 'Descargando…',
-                unavailable: 'No disponible: se usará YouTube',
-                unsupported: 'Chrome sin traductor: se usará YouTube',
-              }[model]
-            }
-            tone={model === 'available' ? 'on' : 'warn'}
-          />
+          <Row label={st.chromeModel} value={st.model[model]} tone={model === 'available' ? 'on' : 'warn'} />
         )}
+        <Row label={st.saved} value={saved === null ? '…' : t.videos(saved)} tone={saved ? 'on' : 'off'} />
         <Row
-          label="Traducciones guardadas"
-          value={saved === null ? '…' : `${saved} ${saved === 1 ? 'vídeo' : 'vídeos'}`}
-          tone={saved ? 'on' : 'off'}
-        />
-        <Row
-          label="Espacio usado"
+          label={st.space}
           value={
             !space
               ? '…'
-              : `Traducciones ${formatBytes(space.translations)} · ${
-                  space.voiceCount
-                    ? `${space.voiceCount} ${space.voiceCount === 1 ? 'voz' : 'voces'} ${formatBytes(space.voices)}`
-                    : 'sin voces descargadas'
-                }`
+              : st.spaceValue(
+                  formatBytes(space.translations),
+                  space.voiceCount ? `${t.voices(space.voiceCount)} ${formatBytes(space.voices)}` : null,
+                )
           }
           tone={space && (space.translations || space.voices) ? 'on' : 'off'}
         />
         <Row
-          label="Subtítulos en pantalla"
+          label={st.onScreen}
           value={
-            [s.showTranslated && 'traducción', s.showOriginal && 'original'].filter(Boolean).join(' + ') || 'ninguno'
+            [s.showTranslated && st.onScreenTranslated, s.showOriginal && st.onScreenOriginal]
+              .filter(Boolean)
+              .join(' + ') || st.none
           }
           tone={s.showTranslated || s.showOriginal ? 'on' : 'off'}
         />
-        <Row label="Leer en voz alta (doblaje)" value={s.dub ? 'Activado' : 'Desactivado'} tone={s.dub ? 'on' : 'off'} />
+        <Row label={st.dub} value={s.dub ? t.on : t.off} tone={s.dub ? 'on' : 'off'} />
         <Row
-          label="Sincronización"
+          label={st.sync}
           value={
             s.dubSync
-              ? `Automática · voz base ${s.dubRate.toFixed(2)}×`
-              : `Manual · voz ${s.dubRate.toFixed(2)}× · vídeo ${Math.round(s.dubVideoRate * 100)} %`
+              ? st.syncAuto(s.dubRate.toFixed(2))
+              : st.syncManual(s.dubRate.toFixed(2), Math.round(s.dubVideoRate * 100))
           }
           tone={s.dub ? 'on' : 'off'}
         />
         <Row
-          label="Tipo de voz"
+          label={st.voiceType}
           value={
             voiceFallsBack
-              ? 'Neuronal no disponible en este idioma: del sistema'
+              ? st.neuralFallsBack
               : s.dubEngine === 'neural'
-                ? `Neuronal (Piper) · ${neuralName}`
-                : `Del sistema · ${s.dubVoice ? s.dubVoice.split(' - ')[0] : 'automática'}`
+                ? st.neuralVoice(neuralName)
+                : st.systemVoice(s.dubVoice ? s.dubVoice.split(' - ')[0]! : null)
           }
           tone={!s.dub ? 'off' : voiceFallsBack ? 'warn' : 'on'}
         />
         <Row
-          label="Sincronía de precisión (Silero VAD)"
-          value={s.audioPrecision ? 'Activada (solo en YouTube)' : 'Desactivada'}
+          label={st.precision}
+          value={s.audioPrecision ? st.precisionOn : st.precisionOff}
           tone={s.audioPrecision && s.dub ? 'on' : 'off'}
         />
-        <Row
-          label="Volumen del original al doblar"
-          value={`${s.dubOriginalVolume} %`}
-          tone={s.dub ? 'on' : 'off'}
-        />
+        <Row label={st.originalVolume} value={`${s.dubOriginalVolume} %`} tone={s.dub ? 'on' : 'off'} />
         {__LIVE_MODE__ && (
-        <Row
-          label="Modo audio (beta)"
-          value={
-            !live
-              ? '…'
-              : { idle: 'Apagado', connecting: 'Conectando…', listening: 'Escuchando esta pestaña', error: 'Error' }[
-                  live.status
-                ]
-          }
-          tone={!live || live.status === 'idle' ? 'off' : live.status === 'error' ? 'warn' : 'on'}
-        />
+          <Row
+            label={st.live}
+            value={!live ? '…' : st.liveState[live.status]}
+            tone={!live || live.status === 'idle' ? 'off' : live.status === 'error' ? 'warn' : 'on'}
+          />
         )}
       </Card>
 
-      <Card title="En esta pestaña">
+      <Card title={st.pageTitle}>
         <PageStatusRows page={page} s={s} />
       </Card>
     </>
@@ -181,62 +156,59 @@ export function StatusTab({ s }: { s: Settings }) {
 }
 
 function PageStatusRows({ page, s }: { page: PageStatus | null | 'no-youtube' | 'no-response'; s: Settings }) {
-  if (page === null) return <p className="hint">Comprobando…</p>;
-  if (page === 'no-youtube') return <p className="hint">Abre un vídeo de YouTube para ver qué está pasando en él.</p>;
-  if (page === 'no-response')
-    return <p className="hint">La extensión no está activa en esta pestaña. Recárgala (F5) para que empiece.</p>;
-  if (!page.active)
-    return <p className="hint">{s.enabled ? 'No hay ningún vídeo abierto en esta pestaña.' : 'La extensión está desactivada.'}</p>;
+  const st = t.status;
+  if (page === null) return <p className="hint">{st.checking}</p>;
+  if (page === 'no-youtube') return <p className="hint">{st.noYoutube}</p>;
+  if (page === 'no-response') return <p className="hint">{st.noResponse}</p>;
+  if (!page.active) return <p className="hint">{s.enabled ? st.noVideo : st.disabled}</p>;
 
   const snap = page.session;
   const tracks =
     page.manualCues === null && page.asrWords === null
-      ? 'Esperando subtítulos…'
-      : [
-          page.manualCues !== null && `manuales (${page.manualCues} frases)`,
-          page.asrWords !== null && `automáticos (${page.asrWords} palabras)`,
-        ]
+      ? st.waitingSubtitles
+      : [page.manualCues !== null && st.manualTrack(page.manualCues), page.asrWords !== null && st.asrTrack(page.asrWords)]
           .filter(Boolean)
           .join(' + ');
-  const engineName = snap?.engine === 'youtube' ? 'YouTube' : snap?.engine === 'chrome' ? 'Chrome (local)' : '—';
+  const engineName =
+    snap?.engine === 'youtube'
+      ? t.translation.engineYoutube
+      : snap?.engine === 'chrome'
+        ? t.translation.engineChrome
+        : '—';
   const fellBack = snap?.engine === 'youtube' && s.engine === 'chrome';
 
   return (
     <>
-      <Row label="Subtítulos recibidos" value={tracks} tone={snap?.cues ? 'on' : 'warn'} />
+      <Row label={st.received} value={tracks} tone={snap?.cues ? 'on' : 'warn'} />
       {!!snap?.cues && (
         <>
           <Row
-            label="Tiempos de cada frase"
-            value={
-              snap.timedByWords
-                ? `De palabras en ${snap.timedByWords}/${snap.cues} frases (precisos)`
-                : 'De los bloques (menos precisos)'
-            }
+            label={st.timing}
+            value={snap.timedByWords ? st.timingWords(snap.timedByWords, snap.cues) : st.timingBlocks}
             tone={snap.timedByWords ? 'on' : 'warn'}
           />
           <Row
-            label="Traducción en uso"
-            value={`${engineName}${fellBack ? ' (plan B)' : ''} · ${snap.translated}/${snap.cues} frases`}
+            label={st.inUse}
+            value={`${engineName}${fellBack ? st.fallback : ''} · ${st.translatedOf(snap.translated, snap.cues)}`}
             tone={fellBack ? 'warn' : snap.translated ? 'on' : 'off'}
           />
         </>
       )}
       <Row
-        label="Voz en uso"
-        value={!s.dub ? 'Doblaje apagado' : page.voice === 'neural' ? 'Neuronal (Piper)' : 'Del sistema'}
+        label={st.voiceInUse}
+        value={!s.dub ? st.dubOff : page.voice === 'neural' ? st.neuralPiper : st.systemShort}
         tone={s.dub ? 'on' : 'off'}
       />
       <Row
-        label="Silero VAD"
+        label={st.silero}
         value={
           page.precision === 'off'
-            ? 'Apagado'
+            ? st.sileroOff
             : page.precision === 'failed'
-              ? 'No se pudo iniciar'
+              ? st.sileroFailed
               : page.analyzedSec
-                ? `Analizando · ${page.analyzedSec} s de audio`
-                : 'Esperando audio…'
+                ? st.sileroAnalyzing(page.analyzedSec)
+                : st.sileroWaiting
         }
         tone={page.precision === 'off' ? 'off' : page.precision === 'failed' ? 'warn' : 'on'}
       />

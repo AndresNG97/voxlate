@@ -26,6 +26,7 @@ import { CaptionSession } from '@/core/application/caption-session';
 import { DubbingService, VoiceCalibration, type DubOptions } from '@/core/application/dubbing';
 import type { Settings } from '@/core/domain/settings';
 import { alignToWords } from '@/core/domain/timing';
+import { setUiLanguage, t } from '@/i18n';
 
 export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
@@ -33,11 +34,13 @@ export default defineContentScript({
   async main(ctx) {
     const store = new ChromeSettingsStore();
     let settings: Settings = await store.get();
+    // Idioma de los avisos sobre el vídeo (el elegido en Ajustes o el de Chrome).
+    setUiLanguage(settings.uiLanguage);
 
     const agent = new YoutubeAgentClient((cb) => ctx.addEventListener(window, 'message', cb));
     const systemVoice = new RuntimeSpeechSynthesizer();
     const neuralVoice = new RuntimeNeuralSynthesizer((loading) =>
-      session?.status(loading ? 'Preparando la voz neuronal… (la primera vez se descarga, ~60 MB)' : null),
+      session?.status(loading ? t.page.preparingVoice : null),
     );
     /** Voz neuronal si hay una para el idioma destino; si no, la del sistema. */
     const useNeural = (s: Settings = settings) =>
@@ -59,14 +62,14 @@ export default defineContentScript({
         .catch((e: unknown) => {
           detectorFailed = true;
           console.warn('[voxlate] detector de voz', e);
-          session?.status('Sincronía de precisión: no se pudo iniciar el detector de voz.', 6000);
+          session?.status(t.page.precisionFailed, 6000);
         });
     }
 
     async function applyAudioPrecision() {
       const available = await agent.setVoiceAnalysis(settings.audioPrecision).catch(() => false);
       if (!settings.audioPrecision) voice.clear();
-      else if (!available) session?.status('Sincronía de precisión: este navegador no puede analizar el audio.', 6000);
+      else if (!available) session?.status(t.page.precisionUnsupported, 6000);
     }
 
     const dubOptions = (): DubOptions => ({
@@ -108,7 +111,7 @@ export default defineContentScript({
         media,
         calibration,
         options: dubOptions,
-        onError: (message) => session?.status(`Doblaje: ${message}`, 6000),
+        onError: (message) => session?.status(t.page.dubError(message), 6000),
         // En desarrollo, una línea por frase en la consola de la pestaña (F12) para ver la sincronización.
         onDebug: import.meta.env.DEV ? (line) => console.info('[voxlate]', line) : undefined,
       });
@@ -161,7 +164,7 @@ export default defineContentScript({
       noCaptions: (id) => {
         // Si ya tenemos subtítulos funcionando para este vídeo, el aviso es falso.
         if (!session || session.hasTrack() || (id && id !== videoId)) return;
-        session.status('Este vídeo no tiene subtítulos. Prueba el modo audio desde el icono de la extensión.');
+        session.status(t.page.noSubtitles);
       },
     });
 
@@ -170,6 +173,7 @@ export default defineContentScript({
     const unwatch = store.watch((next) => {
       const prev = settings;
       settings = next;
+      setUiLanguage(next.uiLanguage);
       // Cambiar de motor de voz obliga a recrear el doblaje: recreamos la sesión.
       const engineChanged = useNeural(prev) !== useNeural(next);
       if (prev.enabled !== next.enabled || prev.sourceLang !== next.sourceLang || engineChanged)

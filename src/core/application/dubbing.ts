@@ -21,6 +21,7 @@
  */
 import { speechEndOf as speechEnd, speechStartOf as speechStart } from '../domain/cue';
 import { correctRate, DEFAULT_CHARS_PER_SEC, planSegment } from '../domain/dub-sync';
+import { t } from '../../i18n';
 import type { MediaElementPort } from '../ports/media-element';
 import type { SpeakResult, SpeechSynthesizerPort } from '../ports/speech-synthesizer';
 
@@ -443,9 +444,7 @@ export class DubbingService {
     this.renderSamples++;
     if (this.warnedSlow || this.renderSamples < 5 || this.renderRatio < 0.95) return;
     this.warnedSlow = true;
-    this.deps.onError(
-      'tu equipo genera la voz neuronal más despacio que el vídeo y se saltarán frases. Prueba la voz del sistema (pestaña Voz).',
-    );
+    this.deps.onError(t.page.slowVoice);
   }
 
   /** Carga el modelo de voz en cuanto se activa el doblaje, para no perder las primeras frases. */

@@ -1,5 +1,6 @@
 /** Controles pequeños reutilizados por las pestañas del popup. */
 import { useState, type ReactNode } from 'react';
+import { t as i18n } from '@/i18n';
 
 export function Check(props: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
   return (
@@ -65,6 +66,8 @@ export function Card(props: { title?: string; children: ReactNode }) {
 export interface TabDef<T extends string> {
   id: T;
   label: string;
+  /** Texto accesible y tooltip (para pestañas con icono). */
+  title?: string;
   /** Punto de color junto a la etiqueta (p. ej. "doblaje activo"). */
   dot?: boolean;
   render: () => ReactNode;
@@ -104,9 +107,11 @@ export function Tabs<T extends string>(props: { tabs: TabDef<T>[] }) {
             aria-selected={t.id === current.id}
             className={t.id === current.id ? 'on' : ''}
             onClick={() => select(t.id)}
+            title={t.title}
+            aria-label={t.title}
           >
             {t.label}
-            {t.dot && <i className="dot" aria-label="activo" />}
+            {t.dot && <i className="dot" aria-label={i18n.active} />}
           </button>
         ))}
       </nav>

@@ -1,6 +1,7 @@
 /** Pestaña "Doblaje": activarlo y cómo encaja la voz con el vídeo (sincronización, velocidades, volumen). */
 import { manualHeadroom, SYNC_LIMITS } from '@/core/domain/dub-sync';
 import type { Settings } from '@/core/domain/settings';
+import { t } from '@/i18n';
 import { Card, Check, Range, Segmented } from './controls';
 import { useIsYoutubeTab } from './useActiveTab';
 import type { SetSettings } from './useSettings';
@@ -11,27 +12,32 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
     <>
       <Card>
         <Check checked={s.dub} onChange={(dub) => set({ dub })}>
-          <b>Leer la traducción en voz alta</b>
+          <b>{t.dub.readAloud}</b>
         </Check>
-        <p className="hint">La voz se elige en la pestaña Voz.</p>
+        <p className="hint">{t.dub.voiceHint}</p>
       </Card>
 
-      <Card title="Sincronización con el vídeo">
+      <Card title={t.dub.syncTitle}>
         <Segmented
           value={s.dubSync ? 'sync' : 'manual'}
           options={[
-            ['sync', 'Automática'],
-            ['manual', 'Manual'],
+            ['sync', t.dub.auto],
+            ['manual', t.dub.manual],
           ]}
           onChange={(mode) => set({ dubSync: mode === 'sync' })}
         />
         <p className="hint">
           {s.dubSync
-            ? `La voz empieza y acaba a la vez que la persona del vídeo. Nunca suena por debajo del ${Math.round(SYNC_LIMITS.minVoice * 100)} % (frenada resulta molesta) y como mucho va al ${Math.round(SYNC_LIMITS.maxVoice * 100)} %. Lo demás lo ajusta el vídeo: se acelera hasta el ${Math.round(SYNC_LIMITS.maxVideo * 100)} % si la traducción es más corta, o se ralentiza hasta el ${Math.round(SYNC_LIMITS.minVideo * 100)} % si es más larga.`
-            : 'La voz y el vídeo van siempre a las velocidades que elijas.'}
+            ? t.dub.autoHint(
+                Math.round(SYNC_LIMITS.minVoice * 100),
+                Math.round(SYNC_LIMITS.maxVoice * 100),
+                Math.round(SYNC_LIMITS.maxVideo * 100),
+                Math.round(SYNC_LIMITS.minVideo * 100),
+              )
+            : t.dub.manualHint}
         </p>
         <Range
-          label={s.dubSync ? 'Velocidad base de la voz' : 'Velocidad de la voz'}
+          label={s.dubSync ? t.dub.baseVoiceRate : t.dub.voiceRate}
           value={s.dubRate}
           display={`${s.dubRate.toFixed(2)}×`}
           min={0.9}
@@ -42,7 +48,7 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
         {!s.dubSync && (
           <>
             <Range
-              label="Velocidad del vídeo"
+              label={t.dub.videoRate}
               value={s.dubVideoRate}
               display={`${Math.round(s.dubVideoRate * 100)}%`}
               min={0.5}
@@ -56,21 +62,17 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
       </Card>
 
       {onYoutube && (
-        <Card title="Sincronía de precisión · Silero VAD">
+        <Card title={t.dub.precisionTitle}>
           <Check checked={s.audioPrecision} onChange={(audioPrecision) => set({ audioPrecision })}>
-            Analizar la voz del vídeo
+            {t.dub.precisionCheck}
           </Check>
-          <p className="hint">
-            Un modelo de detección de voz (Silero) escucha el audio que YouTube ya tiene descargado (1-2 min por
-            delante) y marca cuándo empieza y acaba de hablar la persona, ignorando risas, aplausos y música. El
-            doblaje se ajusta a eso. Funciona en tu equipo. Solo en YouTube.
-          </p>
+          <p className="hint">{t.dub.precisionHint}</p>
         </Card>
       )}
 
-      <Card title="Audio original">
+      <Card title={t.dub.originalTitle}>
         <Range
-          label="Volumen mientras se dobla"
+          label={t.dub.originalVolume}
           value={s.dubOriginalVolume}
           display={`${s.dubOriginalVolume}%`}
           min={0}
@@ -86,10 +88,10 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
 /** Explica qué supone la combinación manual de velocidades. */
 function ManualHint({ voiceRate, videoRate }: { voiceRate: number; videoRate: number }) {
   const headroom = Math.round(manualHeadroom(voiceRate, videoRate) * 100);
-  if (headroom === 0) return <p className="hint">Igual que sin ajustar: las frases largas se pueden solapar.</p>;
+  if (headroom === 0) return <p className="hint">{t.dub.headroomZero}</p>;
   return headroom > 0 ? (
-    <p className="hint">Cabe un {headroom}% más de texto por frase que a velocidad normal.</p>
+    <p className="hint">{t.dub.headroomMore(headroom)}</p>
   ) : (
-    <p className="hint warn-text">Cabe un {-headroom}% menos de texto por frase: la voz irá acumulando retraso.</p>
+    <p className="hint warn-text">{t.dub.headroomLess(-headroom)}</p>
   );
 }

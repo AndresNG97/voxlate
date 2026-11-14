@@ -1,9 +1,10 @@
 /** Barra de idiomas (siempre visible) y pestaña "Traducción": motor, modelo y traducciones guardadas. */
 import { useEffect, useState } from 'react';
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
-import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
+import { ChromeTranslationCache, MAX_AGE_DAYS, MAX_ENTRIES } from '@/adapters/chrome/translation-cache';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
+import { languageName, t } from '@/i18n';
 import { Card, Segmented } from './controls';
 import { formatBytes } from './format';
 import type { SetSettings } from './useSettings';
@@ -15,18 +16,18 @@ const cache = new ChromeTranslationCache();
 export function LanguageBar({ s, set }: { s: Settings; set: SetSettings }) {
   return (
     <div className="langs">
-      <select value={s.sourceLang} onChange={(e) => set({ sourceLang: e.target.value })} aria-label="Idioma del vídeo">
-        {SOURCE_LANGUAGES.map(([code, label]) => (
+      <select value={s.sourceLang} onChange={(e) => set({ sourceLang: e.target.value })} aria-label={t.langs.video}>
+        {SOURCE_LANGUAGES.map((code) => (
           <option key={code} value={code}>
-            {label}
+            {languageName(code)}
           </option>
         ))}
       </select>
       <span className="arrow">→</span>
-      <select value={s.targetLang} onChange={(e) => set({ targetLang: e.target.value })} aria-label="Traducir a">
-        {TARGET_LANGUAGES.map(([code, label]) => (
+      <select value={s.targetLang} onChange={(e) => set({ targetLang: e.target.value })} aria-label={t.langs.target}>
+        {TARGET_LANGUAGES.map((code) => (
           <option key={code} value={code}>
-            {label}
+            {languageName(code)}
           </option>
         ))}
       </select>
@@ -71,33 +72,28 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
 
   return (
     <>
-      <Card title="Motor de traducción">
+      <Card title={t.translation.engineTitle}>
         <Segmented
           value={s.engine}
           options={[
-            ['chrome', 'Chrome (local)'],
-            ['youtube', 'YouTube'],
+            ['chrome', t.translation.engineChrome],
+            ['youtube', t.translation.engineYoutube],
           ]}
           onChange={(engine) => set({ engine })}
         />
         <p className="hint">
-          {s.engine === 'chrome'
-            ? 'Traduce en tu equipo: gratis, privado y sin conexión. Si no está disponible, se usa YouTube.'
-            : 'Usa la traducción automática de los propios subtítulos de YouTube.'}
+          {s.engine === 'chrome' ? t.translation.hintChrome : t.translation.hintYoutube}
         </p>
         {s.engine === 'chrome' && <ModelStatus state={model} progress={progress} onDownload={downloadModel} />}
       </Card>
 
-      <Card title="Traducciones guardadas">
+      <Card title={t.translation.savedTitle}>
         <p className="hint">
-          Cada vídeo se traduce entero una vez y se guarda, así al volver a verlo es instantáneo
-          {saved !== null && ` (${saved} ${saved === 1 ? 'vídeo' : 'vídeos'}, ${formatBytes(savedBytes)})`}.
+          {t.translation.savedHint(saved === null ? null : `${t.videos(saved)}, ${formatBytes(savedBytes)}`)}
         </p>
-        <p className="hint">
-          Se limpian solas: como mucho se guardan los 40 últimos vídeos y se borran las que llevan 30 días sin usarse.
-        </p>
+        <p className="hint">{t.translation.savedCleanup(MAX_ENTRIES, MAX_AGE_DAYS)}</p>
         <button className="link small" onClick={clearSaved} disabled={!saved}>
-          Borrar traducciones guardadas
+          {t.translation.clearSaved}
         </button>
       </Card>
     </>
@@ -112,27 +108,27 @@ function ModelStatus(props: { state: TranslatorAvailability | 'checking'; progre
         <div className="bar">
           <div style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
-        Descargando modelo… {Math.round(progress * 100)}%
+        {t.translation.downloadingModel(Math.round(progress * 100))}
       </div>
     );
   switch (state) {
     case 'checking':
-      return <div className="model muted">Comprobando modelo…</div>;
+      return <div className="model muted">{t.translation.checkingModel}</div>;
     case 'available':
-      return <div className="model ok">● Modelo listo, traduce sin conexión</div>;
+      return <div className="model ok">{t.translation.modelReady}</div>;
     case 'downloadable':
     case 'downloading':
       return (
         <div className="model">
-          Hay que descargar el modelo una vez.
+          {t.translation.modelNeedsDownload}
           <button className="link" onClick={onDownload}>
-            Descargar
+            {t.translation.download}
           </button>
         </div>
       );
     case 'unavailable':
-      return <div className="model warn">Este par de idiomas no está disponible en Chrome. Usa YouTube.</div>;
+      return <div className="model warn">{t.translation.pairUnavailable}</div>;
     case 'unsupported':
-      return <div className="model warn">Tu Chrome no tiene la Translator API (necesitas Chrome 138+ en escritorio).</div>;
+      return <div className="model warn">{t.translation.noTranslatorApi}</div>;
   }
 }

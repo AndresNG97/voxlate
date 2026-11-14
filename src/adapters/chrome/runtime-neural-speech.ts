@@ -10,6 +10,7 @@ import type {
   SpeakResult,
   SpeechSynthesizerPort,
 } from '@/core/ports/speech-synthesizer';
+import { t } from '@/i18n';
 import { sendRuntime, type RuntimeMessage } from './messages';
 
 export class RuntimeNeuralSynthesizer implements SpeechSynthesizerPort {
@@ -49,7 +50,7 @@ export class RuntimeNeuralSynthesizer implements SpeechSynthesizerPort {
 
   private async ensure() {
     const ready = await browser.runtime.sendMessage({ type: 'neural:ensure' } satisfies RuntimeMessage);
-    if (ready !== true) throw new Error('No se pudo iniciar el motor de voz neuronal');
+    if (ready !== true) throw new Error(t.errors.neuralStart);
   }
 
   /** Envía al offscreen; si no contesta (no existía), lo crea y reintenta una vez. */
@@ -64,7 +65,7 @@ export class RuntimeNeuralSynthesizer implements SpeechSynthesizerPort {
         await this.ensure();
         res = (await browser.runtime.sendMessage(msg).catch(() => undefined)) as T | undefined;
       }
-      if (res === undefined) throw new Error('El motor de voz neuronal no responde');
+      if (res === undefined) throw new Error(t.errors.neuralNoResponse);
       this.loaded = true;
       return res;
     } finally {

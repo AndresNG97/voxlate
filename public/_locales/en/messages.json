@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Voxlate — Translated subtitles & dubbing",
+    "description": "Extension name shown in Chrome and in the Chrome Web Store (max. 75 characters)."
+  },
+  "extDescription": {
+    "message": "Translate and dub YouTube videos into your language. Free, private and processed on your own computer.",
+    "description": "Short summary shown in Chrome and in the Chrome Web Store (max. 132 characters)."
+  }
+}
