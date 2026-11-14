@@ -60,21 +60,23 @@ Voxlate is free and open source (GPL-3.0): https://github.com/AndresNG97/voxlate
 
 ---
 
-## Español
+## Spanish
 
-**Nombre** (sale del manifest)
+The texts inside the code blocks stay in Spanish: they are what Spanish-speaking users see.
+
+**Name** (from the manifest)
 
 ```
 Voxlate — Subtítulos traducidos y doblaje
 ```
 
-**Resumen** (sale del manifest)
+**Summary** (from the manifest)
 
 ```
 Traduce y dobla los vídeos de YouTube a tu idioma. Gratis, privado y procesado en tu propio equipo.
 ```
 
-**Descripción**
+**Description**
 
 ```
 Mira los vídeos de YouTube en tu idioma. Voxlate traduce los subtítulos y puede leerlos en voz alta con una voz natural, sincronizada con quien habla. Todo funciona en tu equipo: sin cuentas, sin servidores y sin rastreo.
