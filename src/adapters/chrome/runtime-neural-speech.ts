@@ -35,6 +35,10 @@ export class RuntimeNeuralSynthesizer implements SpeechSynthesizerPort {
     sendRuntime({ type: 'neural:stop', target: 'offscreen' });
   }
 
+  setRate(rate: number) {
+    sendRuntime({ type: 'neural:set-rate', target: 'offscreen', rate });
+  }
+
   pause() {
     sendRuntime({ type: 'neural:pause', target: 'offscreen' });
   }

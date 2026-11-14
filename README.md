@@ -39,11 +39,28 @@ desde donde estás hasta el final, luego lo anterior) y se guarda por vídeo e i
 `chrome.storage.local`, así al volver a un vídeo la traducción es instantánea.
 
 **Doblaje:** con voz neuronal (Piper) el audio de las frases del próximo minuto y medio se genera por
-adelantado en el offscreen document; como se conoce la duración exacta de cada frase, la fórmula del
-modo sincronización (`core/domain/dub-sync.ts`) ajusta voz y vídeo con precisión. Con la voz del
+adelantado en el offscreen document. El modo sincronización (`core/domain/dub-sync.ts`) busca la
+*isocronía*: la voz empieza cuando empieza a hablar la persona y acaba cuando ella acaba (fin real del
+habla, estimado con los tiempos palabra a palabra de los subtítulos). Acelera o frena la voz según haga
+falta, la corrige unas 4 veces por segundo mientras suena y solo ralentiza el vídeo como último recurso.
+Además, cada frase se genera ya con la duración de lo que habla la persona: Piper puede hablar más
+despacio o más deprisa de forma natural (`length_scale`), mucho mejor que estirar el audio. Para eso hay
+un pequeño parche a `@mintplex-labs/piper-tts-web` en `patches/` (pnpm lo aplica solo al instalar). Con la voz del
 sistema (`chrome.tts`) la duración se estima y se calibra sobre la marcha. El motor ONNX y el
 fonetizador de Piper se copian de `node_modules` al compilar (`wxt.config.ts`); las voces (~60 MB)
 se descargan una vez de Hugging Face.
+
+**Cuándo habla de verdad la persona** (`core/domain/timing.ts`). Medido con un vídeo real: los bloques
+de los subtítulos manuales van pegados e incluyen silencios (la persona habla el 28-100 % del bloque), mientras
+que los automáticos dan el instante de cada palabra (~150 ms de error). Por eso se piden **las dos pistas**: el
+texto manual para traducir y las palabras automáticas para los tiempos (error del fin del habla: 704 ms → 91 ms).
+Las anotaciones como "(Laughter)" o "[Music]" se descartan.
+
+**Sincronía de precisión (opcional, solo YouTube):** el agente intercepta el audio que el reproductor mete en
+MSE (Opus en WebM, 1-2 min por delante), lo descompone (`webm-opus-demuxer.ts`), lo decodifica con WebCodecs y
+detecta los tramos de voz (`voice-activity.ts`) para afinar inicio y fin. El detector actual es por energía:
+no distingue a la persona de risas o música, así que con tiempos de palabras solo ajusta ±250 ms. Siguiente paso
+natural: un modelo de voz (Silero VAD) detrás de la misma interfaz.
 
 Hay dos motores de traducción, que se eligen en el popup:
 - **Chrome (local):** traduce on-device. Es gratis, privado y no consume red. Es el motor por defecto.

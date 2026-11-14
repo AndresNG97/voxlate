@@ -16,6 +16,8 @@ import { composeLines } from '../domain/subtitles';
 import type { MediaElementPort } from '../ports/media-element';
 import type { SubtitleViewPort } from '../ports/subtitle-view';
 import type { TranslationCachePort } from '../ports/translation-cache';
+import type { VoiceActivityPort } from '../ports/voice-activity';
+import { refineWithVoice } from '../domain/timing';
 import type { TranslatorPort } from '../ports/translator';
 import type { DubbingService, DubCue } from './dubbing';
 
@@ -37,6 +39,8 @@ export interface CaptionSessionDeps {
   settings: () => Settings;
   /** Traducciones guardadas de vídeos ya vistos. */
   cache?: TranslationCachePort;
+  /** Tramos de voz detectados en el audio real (opción de precisión). */
+  voice?: VoiceActivityPort;
   /** ¿Están visibles los controles del reproductor? (para apartar los subtítulos) */
   controlsVisible?: () => boolean;
 }
@@ -89,8 +93,23 @@ export class CaptionSession {
     this.deps.view.destroy();
   }
 
-  /** Nueva pista de subtítulos para este vídeo. */
+  /** ¿Ya tenemos una pista de subtítulos cargada para este vídeo? */
+  hasTrack(): boolean {
+    return !!this.track?.cues.length;
+  }
+
+  /**
+   * Nueva pista de subtítulos para este vídeo. Si es la misma pista con los
+   * mismos textos y solo cambian los tiempos (p. ej. al llegar los automáticos
+   * para sincronizar), se actualizan los tiempos sin volver a traducir.
+   */
   load(track: CaptionTrack) {
+    const prev = this.track;
+    if (prev && prev.id === track.id && sameTexts(prev.cues, track.cues)) {
+      this.track = track;
+      this.render();
+      return;
+    }
     this.track = track;
     void this.restart();
     this.render();
@@ -146,7 +165,9 @@ export class CaptionSession {
     for (let i = firstCueAfter(list, ms); i < list.length && list[i]!.start < ms + PRELOAD_AHEAD_MS; i++) {
       const cue = list[i]!;
       const text = this.platformTranslated ? cue.text : this.translations.get(i);
-      if (text) upcoming.push({ key: `${i}`, text, original: '', start: cue.start, end: cue.end });
+      if (!text) continue;
+      const nextStart = list[i + 1]?.start;
+      upcoming.push({ ...this.timed(cue, nextStart), key: `${this.platformTranslated ? 'p' : 'c'}${i}`, text, original: '', nextStart });
     }
     this.deps.dubbing.preload(upcoming);
   }
@@ -160,19 +181,26 @@ export class CaptionSession {
     if (this.platformTranslated) {
       const list = this.platformTranslated;
       const j = findCueIndex(list, ms);
-      if (j < 0) return i >= 0 ? { key: `o${i}`, text: '', original, start: cues[i]!.start, end: cues[i]!.end } : null;
-      return { key: `p${j}`, ...list[j]!, original, nextStart: list[j + 1]?.start };
+      if (j < 0) return i >= 0 ? { ...cues[i]!, key: `o${i}`, text: '', original } : null;
+      const nextStart = list[j + 1]?.start;
+      return { ...this.timed(list[j]!, nextStart), key: `p${j}`, original, nextStart };
     }
     if (i < 0) return null;
-    const cue = cues[i]!;
-    return {
-      key: `c${i}`,
-      text: this.translations.get(i) ?? '',
-      original,
-      start: cue.start,
-      end: cue.end,
-      nextStart: cues[i + 1]?.start,
-    };
+    // Tiempos de la frase original (afinados si se puede); el texto, su traducción.
+    const nextStart = cues[i + 1]?.start;
+    return { ...this.timed(cues[i]!, nextStart), key: `c${i}`, text: this.translations.get(i) ?? '', original, nextStart };
+  }
+
+  /**
+   * Con la opción de precisión, ajusta inicio y fin del habla de la frase a
+   * los tramos de voz detectados en el audio real. Si esa zona aún no se ha
+   * analizado, la deja como está.
+   */
+  private timed<T extends Cue>(cue: T, nextStart?: number): T {
+    const { voice, settings } = this.deps;
+    if (!voice || !settings().audioPrecision) return cue;
+    const intervals = voice.intervals(cue.start - 1500, cue.end + 1500);
+    return intervals.length ? (refineWithVoice(cue, intervals, nextStart) as T) : cue;
   }
 
   // -------------------------------------------------------- traducción
@@ -307,4 +335,8 @@ export class CaptionSession {
       console.warn('[voxlate] platform translation', e);
     }
   }
+}
+
+function sameTexts(a: Cue[], b: Cue[]): boolean {
+  return a.length === b.length && a.every((c, i) => c.text === b[i]!.text);
 }

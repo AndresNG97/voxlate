@@ -10,7 +10,8 @@ import { ChromeTranslationCache } from '@/adapters/chrome/translation-cache';
 import { HtmlMediaElement } from '@/adapters/dom/html-media-element';
 import { SubtitleOverlay } from '@/adapters/dom/subtitle-overlay';
 import { pickNeuralVoice } from '@/adapters/piper/piper-voices';
-import { YoutubeAgentClient } from '@/adapters/youtube/agent-client';
+import { YoutubeAgentClient, type YoutubeCaptions } from '@/adapters/youtube/agent-client';
+import { VoiceActivityStore } from '@/adapters/youtube/voice-activity-store';
 import {
   controlsVisible,
   currentVideoId,
@@ -22,6 +23,7 @@ import {
 import { CaptionSession } from '@/core/application/caption-session';
 import { DubbingService, VoiceCalibration, type DubOptions } from '@/core/application/dubbing';
 import type { Settings } from '@/core/domain/settings';
+import { alignToWords } from '@/core/domain/timing';
 
 export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
@@ -41,6 +43,14 @@ export default defineContentScript({
     // La calibración de la voz sobrevive a los cambios de vídeo.
     const calibration = new VoiceCalibration();
     const translationCache = new ChromeTranslationCache();
+    /** Tramos de voz que va detectando el agente en el audio (opción de precisión). */
+    const voice = new VoiceActivityStore();
+
+    async function applyAudioPrecision() {
+      const available = await agent.setVoiceAnalysis(settings.audioPrecision).catch(() => false);
+      if (!settings.audioPrecision) voice.clear();
+      else if (!available) session?.status('Sincronía de precisión: este navegador no puede analizar el audio.', 6000);
+    }
 
     const dubOptions = (): DubOptions => ({
       lang: settings.targetLang,
@@ -53,6 +63,8 @@ export default defineContentScript({
 
     let session: CaptionSession | null = null;
     let videoId = '';
+    /** Pistas recibidas del vídeo actual: la manual (texto) y la automática (tiempos). */
+    let tracks: { manual?: YoutubeCaptions; asr?: YoutubeCaptions } = {};
     let setupGen = 0;
 
     function teardown() {
@@ -71,6 +83,7 @@ export default defineContentScript({
       if (!player || ctx.isInvalid || gen !== setupGen) return;
 
       videoId = currentVideoId();
+      tracks = {};
       const view = new SubtitleOverlay({ kind: 'player', container: player.container });
       const media = new HtmlMediaElement(player.video);
       const dubbing = new DubbingService({
@@ -79,6 +92,8 @@ export default defineContentScript({
         calibration,
         options: dubOptions,
         onError: (message) => session?.status(`Doblaje: ${message}`, 6000),
+        // En desarrollo, una línea por frase en la consola de la pestaña (F12) para ver la sincronización.
+        onDebug: import.meta.env.DEV ? (line) => console.info('[voxlate]', line) : undefined,
       });
       session = new CaptionSession({
         translator: agent.translator,
@@ -87,24 +102,47 @@ export default defineContentScript({
         dubbing,
         settings: () => settings,
         cache: translationCache,
+        voice,
         controlsVisible: () => controlsVisible(player.container),
       });
       setNativeCaptionsHidden(true);
+      voice.clear();
+      void applyAudioPrecision();
       await agent.enableCaptions(settings.sourceLang);
     }
 
     agent.on({
       captions: (c) => {
         if (!session || (c.videoId && c.videoId !== videoId)) return;
+        tracks[c.auto ? 'asr' : 'manual'] = c;
+        // Texto: la manual si la hay (mejor, con puntuación). Tiempos: las palabras
+        // de la automática, que marcan cuándo habla de verdad la persona.
+        const primary = tracks.manual ?? c;
+        const words = tracks.asr?.words;
+        const cues = primary !== tracks.asr && words?.length ? alignToWords(primary.cues, words) : primary.cues;
+        // Para comprobar en la consola (F12, filtrar "voxlate") qué tiempos se están usando.
+        const withWords = cues.filter((q) => q.timing === 'words').length;
+        console.info(
+          '[voxlate]',
+          `subtítulos: ${tracks.manual ? `manual (${tracks.manual.cues.length} frases)` : 'sin manual'} + ` +
+            `${tracks.asr ? `automáticos (${tracks.asr.words?.length ?? 0} palabras)` : 'sin automáticos'} → ` +
+            (withWords
+              ? `tiempos de palabras en ${withWords}/${cues.length} frases ✔`
+              : 'tiempos de los bloques (sin palabras: menos precisos)'),
+        );
         session.load({
-          id: c.videoId ? c.id : undefined,
-          cues: c.cues,
-          lang: c.lang || settings.sourceLang,
-          fetchTranslated: c.fetchTranslated,
+          id: primary.videoId ? primary.id : undefined,
+          cues,
+          lang: primary.lang || settings.sourceLang,
+          fetchTranslated: primary.fetchTranslated,
         });
       },
-      noCaptions: () =>
-        session?.status('Este vídeo no tiene subtítulos. Prueba el modo audio desde el icono de la extensión.'),
+      voiceActivity: (from, to, intervals) => voice.update(from, to, intervals),
+      noCaptions: (id) => {
+        // Si ya tenemos subtítulos funcionando para este vídeo, el aviso es falso.
+        if (!session || session.hasTrack() || (id && id !== videoId)) return;
+        session.status('Este vídeo no tiene subtítulos. Prueba el modo audio desde el icono de la extensión.');
+      },
     });
 
     ctx.addEventListener(document, NAVIGATE_EVENT as keyof DocumentEventMap, () => setupForCurrentVideo());
@@ -116,6 +154,7 @@ export default defineContentScript({
       const engineChanged = useNeural(prev) !== useNeural(next);
       if (prev.enabled !== next.enabled || prev.sourceLang !== next.sourceLang || engineChanged)
         return void setupForCurrentVideo();
+      if (prev.audioPrecision !== next.audioPrecision) void applyAudioPrecision();
       session?.onSettingsChanged(prev, next);
     });
     ctx.onInvalidated(() => {

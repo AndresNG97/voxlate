@@ -1,8 +1,34 @@
 /** Una frase de subtítulo con sus tiempos en milisegundos (tiempo de vídeo). */
 export interface Cue {
   start: number;
+  /** Hasta cuándo se muestra el subtítulo. */
   end: number;
   text: string;
+  /**
+   * Cuándo empieza a hablar de verdad la persona (≥ start). El subtítulo
+   * puede aparecer un poco antes; la voz traducida debe arrancar aquí.
+   */
+  speechStart?: number;
+  /**
+   * Cuándo deja de hablar de verdad la persona (≤ end). Es el objetivo del
+   * doblaje: la voz traducida debe acabar aquí. Si falta, se usa `end`.
+   */
+  speechEnd?: number;
+  /**
+   * De dónde salen speechStart/speechEnd: 'words' = palabras de los automáticos
+   * (precisos, ~150 ms); 'block' = bloque del subtítulo manual (incluye silencios).
+   */
+  timing?: 'words' | 'block';
+}
+
+/** Inicio del habla de una frase (speechStart si se conoce; si no, start). */
+export function speechStartOf(cue: Pick<Cue, 'start' | 'speechStart'>): number {
+  return cue.speechStart ?? cue.start;
+}
+
+/** Final del habla de una frase (speechEnd si se conoce; si no, end). */
+export function speechEndOf(cue: Pick<Cue, 'end' | 'speechEnd'>): number {
+  return cue.speechEnd ?? cue.end;
 }
 
 /** Índice de la frase activa en `ms` (búsqueda binaria), o -1. */
@@ -43,11 +69,14 @@ export function translationOrder(total: number, from: number): number[] {
   return order;
 }
 
-/** Huella corta del contenido de una pista: si YouTube cambia los subtítulos, cambia. */
+/**
+ * Huella corta del TEXTO de una pista: si YouTube cambia los subtítulos, cambia.
+ * No incluye los tiempos, para que afinar la sincronía no invalide la caché de traducciones.
+ */
 export function cuesFingerprint(cues: Cue[]): string {
   let h = 5381;
   for (const c of cues) {
-    const s = `${c.start}|${c.text}\n`;
+    const s = `${c.text}\n`;
     for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   }
   return `${cues.length.toString(36)}-${(h >>> 0).toString(36)}`;

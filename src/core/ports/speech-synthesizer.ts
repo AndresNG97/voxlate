@@ -31,12 +31,23 @@ export interface PrepareRequest {
   text: string;
   lang: string;
   voiceName: string;
+  /**
+   * Duración deseada a velocidad 1 (ms): lo que tarda la persona en decir la
+   * frase. Las voces que puedan generan el audio ya a ese ritmo, de forma
+   * natural, en vez de estirarlo o encogerlo después.
+   */
+  targetMs?: number;
 }
 
 export interface PreparedSpeech {
   id: string;
   /** Duración exacta a velocidad 1. */
   durationMs: number;
+  /**
+   * Lo que duraría a su ritmo natural, si la voz la generó más lenta o más
+   * rápida (Piper). Sirve para que la velocidad que se OYE respete el mínimo.
+   */
+  naturalMs?: number;
 }
 
 export interface SpeechSynthesizerPort {
@@ -50,4 +61,9 @@ export interface SpeechSynthesizerPort {
    * Solo lo tienen las voces que producen audio (Piper), no chrome.tts.
    */
   prepare?(req: PrepareRequest): Promise<PreparedSpeech>;
+  /**
+   * Opcional: cambia la velocidad de la frase que está sonando, sin cortarla
+   * (para ir a la par del hablante). chrome.tts no puede; Piper sí.
+   */
+  setRate?(rate: number): void;
 }

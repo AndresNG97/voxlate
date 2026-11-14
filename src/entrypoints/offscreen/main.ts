@@ -69,6 +69,9 @@ browser.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
     case 'neural:pause':
       piper.pause();
       return;
+    case 'neural:set-rate':
+      piper.setRate(msg.rate);
+      return;
     case 'neural:resume':
       piper.resume();
       return;

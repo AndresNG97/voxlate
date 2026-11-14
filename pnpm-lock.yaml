@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@mintplex-labs/piper-tts-web@1.0.5': 51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c
+
 importers:
 
   .:
@@ -13,7 +16,7 @@ importers:
         version: 1.0.0
       '@mintplex-labs/piper-tts-web':
         specifier: 1.0.5
-        version: 1.0.5(onnxruntime-web@1.20.1)
+        version: 1.0.5(patch_hash=51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c)(onnxruntime-web@1.20.1)
       onnxruntime-web:
         specifier: 1.20.1
         version: 1.20.1
@@ -999,7 +1002,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.3
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@mintplex-labs/piper-tts-web@1.0.5(onnxruntime-web@1.20.1)':
+  '@mintplex-labs/piper-tts-web@1.0.5(patch_hash=51838eb741a91ebb7249bd1c775cdff3ce2da096f695712694e76d10922ceb9c)(onnxruntime-web@1.20.1)':
     dependencies:
       onnxruntime-web: 1.20.1
 

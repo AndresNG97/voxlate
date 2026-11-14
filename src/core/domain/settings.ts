@@ -54,6 +54,11 @@ export interface Settings {
   dubVideoRate: number;
   /** Volumen del audio original mientras se dobla, en %. */
   dubOriginalVolume: number;
+  /**
+   * Sincronía de precisión (solo YouTube): analiza el audio que YouTube ya ha
+   * descargado para detectar al milisegundo cuándo habla la persona.
+   */
+  audioPrecision: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -81,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dubRate: 1,
   dubVideoRate: 0.85,
   dubOriginalVolume: 25,
+  audioPrecision: false,
 };
 
 export function withDefaults(stored: Partial<Settings> | null | undefined): Settings {

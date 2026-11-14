@@ -4,9 +4,10 @@
  * - Avisa cuando llega una pista de subtítulos (ya parseada a frases).
  */
 import type { Cue } from '@/core/domain/cue';
+import type { TimedWord, VoiceInterval } from '@/core/domain/timing';
 import type { TranslatorAvailability, TranslatorPort } from '@/core/ports/translator';
 import { AGENT, CONTENT, isAgentMessage, type AgentMessage, type AgentRpc, type RpcMethod } from './bridge';
-import { parseTimedText } from './timedtext';
+import { parseAsrWords, parseTimedText } from './timedtext';
 
 export interface YoutubeCaptions {
   /** Identificador estable de la pista: vídeo + idioma + manual/automática. */
@@ -14,7 +15,11 @@ export interface YoutubeCaptions {
   videoId: string;
   /** Idioma base de la pista (p. ej. 'en'). */
   lang: string;
+  /** true = subtítulos automáticos (reconocimiento de voz de YouTube). */
+  auto: boolean;
   cues: Cue[];
+  /** Solo automáticos: cada palabra con el instante en que se dice (para sincronizar). */
+  words?: TimedWord[];
   /** Repide la pista traducida por YouTube (&tlang=). */
   fetchTranslated: (targetLang: string) => Promise<Cue[]>;
 }
@@ -22,6 +27,8 @@ export interface YoutubeCaptions {
 interface Handlers {
   captions?: (c: YoutubeCaptions) => void;
   noCaptions?: (videoId: string) => void;
+  /** Tramos con voz detectados en el audio (opción de precisión). */
+  voiceActivity?: (from: number, to: number, intervals: VoiceInterval[]) => void;
 }
 
 export class YoutubeAgentClient {
@@ -56,6 +63,11 @@ export class YoutubeAgentClient {
     this.handlers = handlers;
   }
 
+  /** Activa/desactiva el análisis del audio. Devuelve false si el navegador no puede. */
+  setVoiceAnalysis(enabled: boolean): Promise<boolean> {
+    return this.rpc('setVoiceAnalysis', { enabled });
+  }
+
   enableCaptions(lang: string): Promise<void> {
     return this.rpc('enableCaptions', { lang });
   }
@@ -84,7 +96,9 @@ export class YoutubeAgentClient {
           id: `yt:${msg.videoId}:${msg.lang}:${msg.auto ? 'asr' : 'std'}`,
           videoId: msg.videoId,
           lang: msg.lang.split('-')[0] ?? '',
+          auto: msg.auto,
           cues: parseTimedText(msg.body, msg.auto),
+          words: msg.auto ? parseAsrWords(msg.body) : undefined,
           fetchTranslated: async (tlang) =>
             parseTimedText(await this.rpc('fetchYoutubeTranslation', { url, tlang }), false),
         });
@@ -92,6 +106,9 @@ export class YoutubeAgentClient {
       }
       case 'no-captions':
         this.handlers.noCaptions?.(msg.videoId);
+        return;
+      case 'voice-activity':
+        this.handlers.voiceActivity?.(msg.from, msg.to, msg.intervals);
         return;
       case 'download-progress':
         this.onDownloadProgress?.(msg.fraction);

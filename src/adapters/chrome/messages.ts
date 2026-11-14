@@ -30,6 +30,7 @@ export type RuntimeMessage =
   | { type: 'neural:prepare'; target: 'offscreen'; req: PrepareRequest } // → PreparedSpeech | { error }
   | { type: 'neural:speak'; target: 'offscreen'; req: SpeakRequest } // → SpeakResult
   | { type: 'neural:stop' | 'neural:pause' | 'neural:resume'; target: 'offscreen' }
+  | { type: 'neural:set-rate'; target: 'offscreen'; rate: number }
   | { type: 'neural:progress'; fraction: number }; // offscreen → popup: descarga de la voz
 
 export interface LiveState {

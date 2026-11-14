@@ -2,9 +2,11 @@
 import { manualHeadroom, SYNC_LIMITS } from '@/core/domain/dub-sync';
 import type { Settings } from '@/core/domain/settings';
 import { Card, Check, Range, Segmented } from './controls';
+import { useIsYoutubeTab } from './useActiveTab';
 import type { SetSettings } from './useSettings';
 
 export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
+  const onYoutube = useIsYoutubeTab();
   return (
     <>
       <Card>
@@ -25,14 +27,14 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
         />
         <p className="hint">
           {s.dubSync
-            ? `Si una frase no cabe, ralentiza el vídeo (hasta el ${Math.round(SYNC_LIMITS.minVideoFactor * 100)}%) y acelera un poco la voz (como mucho +${Math.round((SYNC_LIMITS.maxVoiceBoost - 1) * 100)}%), repartiendo el ajuste entre los dos.`
+            ? `La voz empieza y acaba a la vez que la persona del vídeo. Nunca suena por debajo del ${Math.round(SYNC_LIMITS.minVoice * 100)} % (frenada resulta molesta) y como mucho va al ${Math.round(SYNC_LIMITS.maxVoice * 100)} %. Lo demás lo ajusta el vídeo: se acelera hasta el ${Math.round(SYNC_LIMITS.maxVideo * 100)} % si la traducción es más corta, o se ralentiza hasta el ${Math.round(SYNC_LIMITS.minVideo * 100)} % si es más larga.`
             : 'La voz y el vídeo van siempre a las velocidades que elijas.'}
         </p>
         <Range
           label={s.dubSync ? 'Velocidad base de la voz' : 'Velocidad de la voz'}
           value={s.dubRate}
           display={`${s.dubRate.toFixed(2)}×`}
-          min={0.7}
+          min={0.9}
           max={1.5}
           step={0.05}
           onChange={(dubRate) => set({ dubRate })}
@@ -52,6 +54,19 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
           </>
         )}
       </Card>
+
+      {onYoutube && (
+        <Card title="Sincronía de precisión · VAD">
+          <Check checked={s.audioPrecision} onChange={(audioPrecision) => set({ audioPrecision })}>
+            Analizar la voz del vídeo
+          </Check>
+          <p className="hint">
+            Analiza el audio que YouTube ya tiene descargado (1-2 min por delante) para afinar cuándo empieza y
+            acaba de hablar la persona. Mejor con pausas claras; risas, aplausos o música de fondo pueden
+            confundirlo. Solo en YouTube.
+          </p>
+        </Card>
+      )}
 
       <Card title="Audio original">
         <Range

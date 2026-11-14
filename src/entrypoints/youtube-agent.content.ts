@@ -11,6 +11,7 @@
  * Chrome se usa desde aquí porque el mundo aislado no tiene `Translator`.
  */
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
+import { YoutubeAudioTap } from '@/adapters/youtube/audio-tap';
 import { AGENT, isContentMessage, type AgentMessage, type AgentRpc, type RpcMethod } from '@/adapters/youtube/bridge';
 
 interface YtCaptionTrack {
@@ -25,6 +26,11 @@ interface YtPlayer extends HTMLElement {
   getOption?: (module: string, option: string) => unknown;
   setOption?: (module: string, option: string, value: unknown) => void;
   getVideoData?: () => { video_id?: string };
+  getPlayerResponse?: () => {
+    captions?: {
+      playerCaptionsTracklistRenderer?: { captionTracks?: { languageCode: string; kind?: string; vssId?: string }[] };
+    };
+  };
 }
 
 export default defineContentScript({
@@ -38,26 +44,53 @@ export default defineContentScript({
 
     const nativeFetch = window.fetch.bind(window);
     const translator = new ChromeTranslator();
+    // Hay que engancharlo ya (document_start), antes de que el reproductor cree su MediaSource.
+    const audioTap = new YoutubeAudioTap();
+    audioTap.install();
+    let voiceTimer: ReturnType<typeof setInterval> | undefined;
+    let lastVoiceSignature = '';
 
-    /** Última respuesta de subtítulos por vídeo (por si el content script llega tarde). */
-    const lastCaptions = new Map<string, Extract<AgentMessage, { type: 'captions' }>>();
+    /** Cada segundo, manda al content script los tramos de voz de la zona que importa. */
+    function postVoiceActivity() {
+      const video = document.querySelector<HTMLVideoElement>('#movie_player video');
+      if (!video) return;
+      const now = video.currentTime * 1000;
+      const from = now - 10_000;
+      const to = now + 150_000;
+      const intervals = audioTap.intervals(from, to);
+      const signature = `${intervals.length}|${intervals[0]?.start}|${intervals.at(-1)?.end}`;
+      if (signature === lastVoiceSignature) return;
+      lastVoiceSignature = signature;
+      post({ type: 'voice-activity', from, to, intervals });
+    }
+
+    type CaptionsMsg = Extract<AgentMessage, { type: 'captions' }>;
+    const baseLang = (code: string) => code.split('-')[0] ?? '';
+    const captionsKey = (videoId: string, asr: boolean) => `${videoId}|${asr ? 'asr' : 'std'}`;
+
+    /**
+     * Última pista recibida por vídeo y tipo (manual / automática), por si el
+     * content script llega tarde o la pide otra vez.
+     */
+    const lastCaptions = new Map<string, CaptionsMsg>();
 
     function onTimedText(rawUrl: string, body: string) {
       try {
         const url = new URL(rawUrl, location.origin);
         // Si es una petición ya traducida por YouTube la ignoramos.
-        if (url.searchParams.has('tlang')) return;
+        if (url.searchParams.has('tlang') || !body) return;
         const videoId = url.searchParams.get('v') ?? '';
-        const msg = {
+        const auto = url.searchParams.get('kind') === 'asr';
+        const msg: CaptionsMsg = {
           source: AGENT,
           type: 'captions',
           videoId,
           lang: url.searchParams.get('lang') ?? '',
-          auto: url.searchParams.get('kind') === 'asr',
+          auto,
           url: url.toString(),
           body,
-        } as const;
-        lastCaptions.set(videoId, msg);
+        };
+        lastCaptions.set(captionsKey(videoId, auto), msg);
         window.postMessage(msg, location.origin);
       } catch (e) {
         console.warn('[voxlate] timedtext', e);
@@ -80,7 +113,9 @@ export default defineContentScript({
       const href = String(url);
       if (href.includes('/api/timedtext')) {
         this.addEventListener('load', () => {
-          if (this.responseType === '' || this.responseType === 'text') onTimedText(href, this.responseText);
+          const r: unknown = this.response;
+          const body = typeof r === 'string' ? r : r instanceof ArrayBuffer ? new TextDecoder().decode(r) : '';
+          onTimedText(href, body);
         });
       }
       // @ts-expect-error reenviamos los argumentos opcionales tal cual
@@ -94,37 +129,92 @@ export default defineContentScript({
       return player()?.getVideoData?.().video_id ?? new URLSearchParams(location.search).get('v') ?? '';
     }
 
+    /**
+     * Pistas disponibles. La API del reproductor a veces devuelve la lista vacía
+     * (sobre todo si los subtítulos ya venían activados); en ese caso las leemos
+     * de los datos del vídeo. Ojo: para activar una pista automática hay que
+     * pasar el objeto completo (con vss_id), no basta con el idioma.
+     */
+    function availableTracks(): YtCaptionTrack[] {
+      const p = player();
+      p?.loadModule?.('captions');
+      const fromPlayer = (p?.getOption?.('captions', 'tracklist') as YtCaptionTrack[] | undefined) ?? [];
+      if (fromPlayer.length) return fromPlayer;
+      const fromResponse = p?.getPlayerResponse?.()?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+      return fromResponse.map((t) => ({ languageCode: t.languageCode, kind: t.kind, vss_id: t.vssId }));
+    }
+
+    function cached(videoId: string, lang: string, asr: boolean): CaptionsMsg | null {
+      const c = lastCaptions.get(captionsKey(videoId, asr));
+      return c && baseLang(c.lang) === lang ? c : null;
+    }
+
+    async function waitFor<T>(get: () => T | null, ms: number): Promise<T | null> {
+      for (let waited = 0; waited < ms; waited += 150) {
+        const v = get();
+        if (v) return v;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return get();
+    }
+
+    /** Activa una pista y espera a recibirla. Si ya estaba activa, la reactiva para forzar la descarga. */
+    async function fetchTrack(videoId: string, track: YtCaptionTrack): Promise<boolean> {
+      const lang = baseLang(track.languageCode);
+      const asr = track.kind === 'asr';
+      if (cached(videoId, lang, asr)) return true;
+      player()?.setOption?.('captions', 'track', track);
+      if (await waitFor(() => cached(videoId, lang, asr), 2500)) return true;
+      player()?.setOption?.('captions', 'track', {});
+      player()?.setOption?.('captions', 'track', track);
+      return !!(await waitFor(() => cached(videoId, lang, asr), 2500));
+    }
+
+    /**
+     * Consigue los subtítulos del vídeo en `lang`: la pista manual (mejor texto
+     * para traducir) y además la automática (tiempos de cada palabra, para
+     * sincronizar el doblaje). Las dos llegan al content script, que las combina.
+     */
     async function enableCaptions(lang: string) {
       const videoId = currentVideoId();
-      const cached = lastCaptions.get(videoId);
-      if (cached && cached.lang.startsWith(lang)) {
-        window.postMessage(cached, location.origin);
-        return;
+      // Lo que ya tengamos, se reenvía enseguida (p. ej. si los subtítulos ya estaban puestos).
+      for (const asr of [false, true]) {
+        const c = cached(videoId, lang, asr);
+        if (c) window.postMessage(c, location.origin);
       }
 
       // La lista de pistas tarda un poco en estar disponible tras cargar el vídeo.
-      let tracks: YtCaptionTrack[] = [];
-      for (let i = 0; i < 30; i++) {
-        const p = player();
-        p?.loadModule?.('captions');
-        tracks = (p?.getOption?.('captions', 'tracklist') as YtCaptionTrack[] | undefined) ?? [];
-        if (tracks.length) break;
-        await new Promise((r) => setTimeout(r, 150));
-      }
+      const tracks = (await waitFor(() => { const t = availableTracks(); return t.length ? t : null; }, 4500)) ?? [];
+      const inLang = tracks.filter((t) => baseLang(t.languageCode) === lang);
+      const manualTrack = inLang.find((t) => t.kind !== 'asr');
+      const asrTrack = inLang.find((t) => t.kind === 'asr');
 
-      // Preferimos subtítulos manuales > automáticos > cualquier otro idioma.
-      const inLang = tracks.filter((t) => t.languageCode.split('-')[0] === lang);
-      const track = inLang.find((t) => t.kind !== 'asr') ?? inLang[0] ?? tracks[0];
-      if (!track) {
+      if (!manualTrack && !asrTrack) {
+        // Nada en ese idioma: lo que haya llegado de este vídeo, o cualquier otra pista.
+        const any = [...lastCaptions.values()].find((c) => c.videoId === videoId);
+        if (any) return void window.postMessage(any, location.origin);
+        if (tracks[0] && (await fetchTrack(videoId, tracks[0]))) return;
         post({ type: 'no-captions', videoId });
         return;
       }
-      player()?.setOption?.('captions', 'track', track);
+      if (manualTrack) await fetchTrack(videoId, manualTrack);
+      if (asrTrack) {
+        await fetchTrack(videoId, asrTrack);
+        // Dejamos activa la manual, que es la que el usuario espera.
+        if (manualTrack) player()?.setOption?.('captions', 'track', manualTrack);
+      }
     }
 
     // --- RPC desde el content script ---------------------------------------------
     const handlers: { [K in RpcMethod]: (args: AgentRpc[K]['args']) => Promise<AgentRpc[K]['result']> } = {
       enableCaptions: ({ lang }) => enableCaptions(lang),
+      setVoiceAnalysis: async ({ enabled }) => {
+        audioTap.setEnabled(enabled);
+        clearInterval(voiceTimer);
+        lastVoiceSignature = '';
+        if (enabled && audioTap.available) voiceTimer = setInterval(postVoiceActivity, 1000);
+        return audioTap.available;
+      },
       translatorStatus: ({ from, to }) => translator.availability(from, to),
       prepareTranslator: async ({ from, to }) => {
         await translator.prepare(from, to, (fraction) => post({ type: 'download-progress', fraction }));
