@@ -2,12 +2,15 @@
  * Offscreen document (raíz de composición). Lo comparten:
  * - Modo audio: TabAudioCapture → Deepgram → traductor de Chrome → background → overlay
  * - Voz neuronal: Piper genera y reproduce el audio del doblaje (mensajes neural:*)
+ * - Detector de voz: Silero VAD analiza el audio de YouTube (mensajes vad:*)
  */
 import { ChromeTranslator } from '@/adapters/chrome/chrome-translator';
 import { sendRuntime, type RuntimeMessage } from '@/adapters/chrome/messages';
 import { TabAudioCapture } from '@/adapters/chrome/tab-audio-capture';
 import { deepgramRecognizer } from '@/adapters/deepgram/deepgram-recognizer';
+import { decodePcm } from '@/adapters/chrome/pcm-codec';
 import { PiperSynthesizer } from '@/adapters/piper/piper-synthesizer';
+import { SileroVad } from '@/adapters/silero/silero-vad';
 import { LiveTranscription } from '@/core/application/live-transcription';
 
 // ------------------------------------------------------------- modo audio
@@ -32,6 +35,9 @@ const piper = new PiperSynthesizer(
   },
   (fraction) => sendRuntime({ type: 'neural:progress', fraction }),
 );
+
+// --------------------------------------------- detector de voz (sincronía de precisión)
+const silero = new SileroVad({ modelUrl: vendor('silero/silero_vad_v5.onnx'), onnxWasm: vendor('ort/') });
 
 browser.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
   const msg = raw as RuntimeMessage;
@@ -69,6 +75,11 @@ browser.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
     case 'neural:pause':
       piper.pause();
       return;
+    case 'vad:analyze':
+      silero.analyze(decodePcm(msg.pcm), msg.startMs).then(sendResponse, (e: unknown) =>
+        sendResponse({ error: e instanceof Error ? e.message : String(e) }),
+      );
+      return true;
     case 'neural:set-rate':
       piper.setRate(msg.rate);
       return;

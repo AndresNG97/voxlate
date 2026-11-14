@@ -1,12 +1,13 @@
 import { Tabs } from './controls';
 import { DubTab } from './DubTab';
 import { LiveTab } from './LiveTab';
+import { StatusTab } from './StatusTab';
 import { SubtitleTab } from './SubtitleTab';
 import { LanguageBar, TranslationTab } from './TranslationTab';
 import { useSettings } from './useSettings';
 import { VoiceTab } from './VoiceTab';
 
-type TabId = 'translation' | 'subtitles' | 'dub' | 'voice' | 'audio';
+type TabId = 'status' | 'translation' | 'subtitles' | 'dub' | 'voice' | 'audio';
 
 export default function App() {
   const [s, set] = useSettings();
@@ -27,6 +28,7 @@ export default function App() {
 
       <Tabs<TabId>
         tabs={[
+          { id: 'status', label: 'Estado', render: () => <StatusTab s={s} /> },
           { id: 'translation', label: 'Traducción', render: () => <TranslationTab s={s} set={set} /> },
           { id: 'subtitles', label: 'Subtítulos', render: () => <SubtitleTab s={s} set={set} /> },
           { id: 'dub', label: 'Doblaje', dot: s.dub, render: () => <DubTab s={s} set={set} /> },

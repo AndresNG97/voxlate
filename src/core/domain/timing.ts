@@ -113,15 +113,15 @@ export function alignToWords(cues: Cue[], words: TimedWord[]): Cue[] {
 /**
  * Cuánto puede moverse cada borde al encajarlo con el audio, según lo fiable
  * que sea la estimación de partida:
- * - 'words' (palabras de los automáticos, ~150 ms): solo un ajuste fino.
- * - 'block' (bloque manual, incluye silencios): el fin real suele estar bastante
- *   antes del fin del bloque, así que se busca hacia atrás con margen amplio.
- * El fin nunca se alarga más de unos ms: si tras la frase sigue sonando algo
- * (risas, aplausos, música), el detector de energía lo confundiría con voz.
+ * - 'words' (palabras de los automáticos, ~150 ms): ajuste fino.
+ * - 'block' (bloque manual): los bloques incluyen silencios y a veces acaban
+ *   antes de que la persona termine, así que se busca con margen amplio.
+ * Con Silero VAD (ignora risas, aplausos y música; medido: 0 % de falsos
+ * positivos con aplausos y música) se puede alargar el fin si la voz sigue.
  */
 const SEARCH = {
-  words: { startBefore: 250, startAfter: 250, endBefore: 400, endAfter: 250 },
-  block: { startBefore: 400, startAfter: 800, endBefore: 2000, endAfter: 250 },
+  words: { startBefore: 250, startAfter: 300, endBefore: 500, endAfter: 400 },
+  block: { startBefore: 500, startAfter: 1000, endBefore: 2500, endAfter: 1000 },
 } as const;
 
 /**

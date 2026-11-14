@@ -56,14 +56,14 @@ export function DubTab({ s, set }: { s: Settings; set: SetSettings }) {
       </Card>
 
       {onYoutube && (
-        <Card title="Sincronía de precisión · VAD">
+        <Card title="Sincronía de precisión · Silero VAD">
           <Check checked={s.audioPrecision} onChange={(audioPrecision) => set({ audioPrecision })}>
             Analizar la voz del vídeo
           </Check>
           <p className="hint">
-            Analiza el audio que YouTube ya tiene descargado (1-2 min por delante) para afinar cuándo empieza y
-            acaba de hablar la persona. Mejor con pausas claras; risas, aplausos o música de fondo pueden
-            confundirlo. Solo en YouTube.
+            Un modelo de detección de voz (Silero) escucha el audio que YouTube ya tiene descargado (1-2 min por
+            delante) y marca cuándo empieza y acaba de hablar la persona, ignorando risas, aplausos y música. El
+            doblaje se ajusta a eso. Funciona en tu equipo. Solo en YouTube.
           </p>
         </Card>
       )}

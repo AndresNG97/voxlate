@@ -31,7 +31,27 @@ export type RuntimeMessage =
   | { type: 'neural:speak'; target: 'offscreen'; req: SpeakRequest } // → SpeakResult
   | { type: 'neural:stop' | 'neural:pause' | 'neural:resume'; target: 'offscreen' }
   | { type: 'neural:set-rate'; target: 'offscreen'; rate: number }
-  | { type: 'neural:progress'; fraction: number }; // offscreen → popup: descarga de la voz
+  // detector de voz (Silero) en el offscreen document; pcm = Int16 en base64 → VoiceProbabilities | { error }
+  | { type: 'vad:analyze'; target: 'offscreen'; startMs: number; pcm: string }
+  | { type: 'neural:progress'; fraction: number } // offscreen → popup: descarga de la voz
+  // popup → content script de YouTube: ¿qué está pasando en esta pestaña? → PageStatus
+  | { type: 'page:status' };
+
+/** Lo que está pasando de verdad en una pestaña de YouTube. */
+export interface PageStatus {
+  /** Hay un vídeo (página /watch) y la extensión está trabajando en él. */
+  active: boolean;
+  /** Pistas de subtítulos recibidas: manual (frases) y automática (palabras). */
+  manualCues: number | null;
+  asrWords: number | null;
+  session: import('@/core/application/caption-session').CaptionSessionSnapshot | null;
+  /** Voz del doblaje que se está usando de verdad. */
+  voice: 'neural' | 'system';
+  /** Sincronía de precisión: analizando, con error o apagada. */
+  precision: 'off' | 'on' | 'failed';
+  /** Segundos de audio analizados por Silero. */
+  analyzedSec: number;
+}
 
 export interface LiveState {
   status: LiveStatus;

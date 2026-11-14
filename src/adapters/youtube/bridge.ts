@@ -4,8 +4,6 @@
  * de subtítulos y a la Translator API de la página).
  */
 
-import type { VoiceInterval } from '@/core/domain/timing';
-
 export const AGENT = 'vt-agent';
 export const CONTENT = 'vt-content';
 
@@ -26,8 +24,8 @@ export type AgentMessage =
   | { source: typeof AGENT; type: 'rpc-result'; id: number; ok: true; value: unknown }
   | { source: typeof AGENT; type: 'rpc-result'; id: number; ok: false; error: string }
   | { source: typeof AGENT; type: 'download-progress'; fraction: number }
-  /** Tramos con voz detectados en el audio (opción de precisión), en la zona from-to (ms). */
-  | { source: typeof AGENT; type: 'voice-activity'; from: number; to: number; intervals: VoiceInterval[] };
+  /** Audio ya descargado por YouTube, mono a 16 kHz, desde startMs (opción de precisión). */
+  | { source: typeof AGENT; type: 'audio-pcm'; startMs: number; samples: Float32Array };
 
 /** Llamadas que el content script hace al agente. */
 export interface AgentRpc {

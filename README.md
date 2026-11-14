@@ -58,9 +58,10 @@ Las anotaciones como "(Laughter)" o "[Music]" se descartan.
 
 **Sincronía de precisión (opcional, solo YouTube):** el agente intercepta el audio que el reproductor mete en
 MSE (Opus en WebM, 1-2 min por delante), lo descompone (`webm-opus-demuxer.ts`), lo decodifica con WebCodecs y
-detecta los tramos de voz (`voice-activity.ts`) para afinar inicio y fin. El detector actual es por energía:
-no distingue a la persona de risas o música, así que con tiempos de palabras solo ajusta ±250 ms. Siguiente paso
-natural: un modelo de voz (Silero VAD) detrás de la misma interfaz.
+lo pasa a 16 kHz. El content script lo envía al offscreen document, donde **Silero VAD v5** (`adapters/silero`,
+ONNX, MIT) da la probabilidad de voz cada 32 ms; `voice-activity.ts` lo convierte en tramos y `timing.ts` afina
+inicio y fin de cada frase. Medido: 0 % de falsos positivos con aplausos y música (un detector por energía los
+confundía con voz), bordes a ~60 ms y unas 90× más rápido que el tiempo real.
 
 Hay dos motores de traducción, que se eligen en el popup:
 - **Chrome (local):** traduce on-device. Es gratis, privado y no consume red. Es el motor por defecto.

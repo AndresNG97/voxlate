@@ -49,7 +49,7 @@ select {
 /* Pestañas */
 .tabs { display: flex; border-bottom: 1px solid var(--line); margin: 0 -14px; padding: 0 8px; }
 .tabs button {
-  all: unset; flex: 1 1 auto; text-align: center; cursor: pointer; padding: 8px 6px 9px; font-size: 12px;
+  all: unset; flex: 1 1 auto; text-align: center; cursor: pointer; padding: 8px 3px 9px; font-size: 11.5px;
   color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; position: relative;
 }
 .tabs button:hover { color: var(--text); }
@@ -113,3 +113,12 @@ input[type='color'] {
 }
 input[type='color']::-webkit-color-swatch-wrapper { padding: 2px; }
 input[type='color']::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+/* Pestaña Estado */
+.status-row { display: grid; grid-template-columns: 10px 1fr auto; align-items: baseline; gap: 8px; font-size: 12px; }
+.status-row + .status-row { border-top: 1px solid var(--line); padding-top: 6px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); align-self: center; }
+.status-dot.on { background: var(--ok); }
+.status-dot.warn { background: var(--warn); }
+.status-label { color: var(--muted); }
+.status-value { text-align: right; max-width: 180px; overflow-wrap: anywhere; }

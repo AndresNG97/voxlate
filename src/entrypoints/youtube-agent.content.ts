@@ -45,24 +45,12 @@ export default defineContentScript({
     const nativeFetch = window.fetch.bind(window);
     const translator = new ChromeTranslator();
     // Hay que engancharlo ya (document_start), antes de que el reproductor cree su MediaSource.
-    const audioTap = new YoutubeAudioTap();
+    // Con la opción de precisión, entrega el audio (16 kHz) al content script para el detector de voz.
+    const audioTap = new YoutubeAudioTap((startMs, samples) => {
+      const msg: AgentMessage = { source: AGENT, type: 'audio-pcm', startMs, samples };
+      window.postMessage(msg, location.origin, [samples.buffer]);
+    });
     audioTap.install();
-    let voiceTimer: ReturnType<typeof setInterval> | undefined;
-    let lastVoiceSignature = '';
-
-    /** Cada segundo, manda al content script los tramos de voz de la zona que importa. */
-    function postVoiceActivity() {
-      const video = document.querySelector<HTMLVideoElement>('#movie_player video');
-      if (!video) return;
-      const now = video.currentTime * 1000;
-      const from = now - 10_000;
-      const to = now + 150_000;
-      const intervals = audioTap.intervals(from, to);
-      const signature = `${intervals.length}|${intervals[0]?.start}|${intervals.at(-1)?.end}`;
-      if (signature === lastVoiceSignature) return;
-      lastVoiceSignature = signature;
-      post({ type: 'voice-activity', from, to, intervals });
-    }
 
     type CaptionsMsg = Extract<AgentMessage, { type: 'captions' }>;
     const baseLang = (code: string) => code.split('-')[0] ?? '';
@@ -210,9 +198,6 @@ export default defineContentScript({
       enableCaptions: ({ lang }) => enableCaptions(lang),
       setVoiceAnalysis: async ({ enabled }) => {
         audioTap.setEnabled(enabled);
-        clearInterval(voiceTimer);
-        lastVoiceSignature = '';
-        if (enabled && audioTap.available) voiceTimer = setInterval(postVoiceActivity, 1000);
         return audioTap.available;
       },
       translatorStatus: ({ from, to }) => translator.availability(from, to),

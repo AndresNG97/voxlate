@@ -16,6 +16,8 @@ const VENDOR_FILES: [src: string, dest: string][] = [
   [join(pkgDir('onnxruntime-web'), 'dist/ort-wasm-simd-threaded.wasm'), 'vendor/ort/ort-wasm-simd-threaded.wasm'],
   [join(pkgDir('@diffusionstudio/piper-wasm'), 'build/piper_phonemize.wasm'), 'vendor/piper/piper_phonemize.wasm'],
   [join(pkgDir('@diffusionstudio/piper-wasm'), 'build/piper_phonemize.data'), 'vendor/piper/piper_phonemize.data'],
+  // Detector de voz Silero VAD v5 (MIT) para la sincronía de precisión.
+  [join(pkgDir('@ricky0123/vad-web'), 'dist/silero_vad_v5.onnx'), 'vendor/silero/silero_vad_v5.onnx'],
 ];
 
 // Docs: https://wxt.dev/api/config.html

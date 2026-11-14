@@ -31,6 +31,17 @@ export interface CaptionTrack {
   fetchTranslated?: (targetLang: string) => Promise<Cue[]>;
 }
 
+export interface CaptionSessionSnapshot {
+  /** Frases de la pista cargada (0 = aún no hay subtítulos). */
+  cues: number;
+  /** Frases ya traducidas. */
+  translated: number;
+  /** Motor que se está usando de verdad (el de YouTube puede entrar como plan B). */
+  engine: 'chrome' | 'youtube' | null;
+  /** Frases con tiempos de palabras (precisos); el resto, tiempos del bloque. */
+  timedByWords: number;
+}
+
 export interface CaptionSessionDeps {
   translator: TranslatorPort;
   view: SubtitleViewPort;
@@ -91,6 +102,17 @@ export class CaptionSession {
     this.unsubscribe.forEach((off) => off());
     this.deps.dubbing.dispose();
     this.deps.view.destroy();
+  }
+
+/** Foto de lo que está haciendo la sesión (para la pestaña Estado del popup). */
+  snapshot(): CaptionSessionSnapshot {
+    const cues = this.track?.cues ?? [];
+    return {
+      cues: cues.length,
+      translated: this.platformTranslated ? this.platformTranslated.length : this.translations.size,
+      engine: !cues.length ? null : this.platformTranslated ? 'youtube' : 'chrome',
+      timedByWords: cues.filter((c) => c.timing === 'words').length,
+    };
   }
 
   /** ¿Ya tenemos una pista de subtítulos cargada para este vídeo? */

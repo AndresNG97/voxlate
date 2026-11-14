@@ -1,0 +1,2 @@
+# Los parches de pnpm deben conservar los saltos de línea LF para aplicarse bien.
+patches/*.patch text eol=lf

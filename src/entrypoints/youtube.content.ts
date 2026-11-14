@@ -11,7 +11,9 @@ import { HtmlMediaElement } from '@/adapters/dom/html-media-element';
 import { SubtitleOverlay } from '@/adapters/dom/subtitle-overlay';
 import { pickNeuralVoice } from '@/adapters/piper/piper-voices';
 import { YoutubeAgentClient, type YoutubeCaptions } from '@/adapters/youtube/agent-client';
-import { VoiceActivityStore } from '@/adapters/youtube/voice-activity-store';
+import type { PageStatus, RuntimeMessage } from '@/adapters/chrome/messages';
+import { RuntimeVoiceDetector } from '@/adapters/chrome/runtime-voice-detector';
+import { SpeechTimeline } from '@/core/domain/voice-activity';
 import {
   controlsVisible,
   currentVideoId,
@@ -43,8 +45,23 @@ export default defineContentScript({
     // La calibración de la voz sobrevive a los cambios de vídeo.
     const calibration = new VoiceCalibration();
     const translationCache = new ChromeTranslationCache();
-    /** Tramos de voz que va detectando el agente en el audio (opción de precisión). */
-    const voice = new VoiceActivityStore();
+    // Opción de precisión: el agente nos pasa el audio de YouTube, Silero (en el
+    // offscreen) dice dónde hay voz y la línea de tiempo lo convierte en tramos.
+    const detector = new RuntimeVoiceDetector();
+    const voice = new SpeechTimeline(detector.frameMs);
+    let detectorQueue: Promise<unknown> = Promise.resolve();
+    let detectorFailed = false;
+    function analyzeAudio(startMs: number, samples: Float32Array) {
+      if (!settings.audioPrecision || detectorFailed) return;
+      detectorQueue = detectorQueue
+        .then(() => detector.analyze(samples, startMs))
+        .then((r) => voice.add(r.startMs, r.probabilities))
+        .catch((e: unknown) => {
+          detectorFailed = true;
+          console.warn('[voxlate] detector de voz', e);
+          session?.status('Sincronía de precisión: no se pudo iniciar el detector de voz.', 6000);
+        });
+    }
 
     async function applyAudioPrecision() {
       const available = await agent.setVoiceAnalysis(settings.audioPrecision).catch(() => false);
@@ -137,7 +154,7 @@ export default defineContentScript({
           fetchTranslated: primary.fetchTranslated,
         });
       },
-      voiceActivity: (from, to, intervals) => voice.update(from, to, intervals),
+      audioPcm: analyzeAudio,
       noCaptions: (id) => {
         // Si ya tenemos subtítulos funcionando para este vídeo, el aviso es falso.
         if (!session || session.hasTrack() || (id && id !== videoId)) return;
@@ -157,7 +174,23 @@ export default defineContentScript({
       if (prev.audioPrecision !== next.audioPrecision) void applyAudioPrecision();
       session?.onSettingsChanged(prev, next);
     });
+    // El popup pregunta qué está pasando en esta pestaña (pestaña Estado).
+    const onRuntimeMessage = (raw: unknown, _sender: unknown, sendResponse: (r: PageStatus) => void) => {
+      if ((raw as RuntimeMessage).type !== 'page:status') return;
+      sendResponse({
+        active: !!session,
+        manualCues: tracks.manual?.cues.length ?? null,
+        asrWords: tracks.asr?.words?.length ?? null,
+        session: session?.snapshot() ?? null,
+        voice: useNeural() ? 'neural' : 'system',
+        precision: !settings.audioPrecision ? 'off' : detectorFailed ? 'failed' : 'on',
+        analyzedSec: Math.round(voice.coveredMs() / 1000),
+      });
+    };
+    browser.runtime.onMessage.addListener(onRuntimeMessage);
+
     ctx.onInvalidated(() => {
+      browser.runtime.onMessage.removeListener(onRuntimeMessage);
       unwatch();
       teardown();
     });

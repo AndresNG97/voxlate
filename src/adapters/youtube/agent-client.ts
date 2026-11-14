@@ -4,7 +4,7 @@
  * - Avisa cuando llega una pista de subtítulos (ya parseada a frases).
  */
 import type { Cue } from '@/core/domain/cue';
-import type { TimedWord, VoiceInterval } from '@/core/domain/timing';
+import type { TimedWord } from '@/core/domain/timing';
 import type { TranslatorAvailability, TranslatorPort } from '@/core/ports/translator';
 import { AGENT, CONTENT, isAgentMessage, type AgentMessage, type AgentRpc, type RpcMethod } from './bridge';
 import { parseAsrWords, parseTimedText } from './timedtext';
@@ -27,8 +27,8 @@ export interface YoutubeCaptions {
 interface Handlers {
   captions?: (c: YoutubeCaptions) => void;
   noCaptions?: (videoId: string) => void;
-  /** Tramos con voz detectados en el audio (opción de precisión). */
-  voiceActivity?: (from: number, to: number, intervals: VoiceInterval[]) => void;
+  /** Audio ya descargado por YouTube, mono a 16 kHz (opción de precisión). */
+  audioPcm?: (startMs: number, samples: Float32Array) => void;
 }
 
 export class YoutubeAgentClient {
@@ -107,8 +107,8 @@ export class YoutubeAgentClient {
       case 'no-captions':
         this.handlers.noCaptions?.(msg.videoId);
         return;
-      case 'voice-activity':
-        this.handlers.voiceActivity?.(msg.from, msg.to, msg.intervals);
+      case 'audio-pcm':
+        this.handlers.audioPcm?.(msg.startMs, msg.samples);
         return;
       case 'download-progress':
         this.onDownloadProgress?.(msg.fraction);
