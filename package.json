@@ -3,7 +3,7 @@
   "description": "Voxlate: translated subtitles and dubbing for YouTube videos, free and on-device",
   "private": true,
   "license": "GPL-3.0-or-later",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
