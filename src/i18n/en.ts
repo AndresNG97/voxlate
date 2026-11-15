@@ -203,7 +203,7 @@ export const en: Messages = {
 
   live: {
     title: 'Audio mode (beta)',
-    hint: 'For videos without captions, on any website: listens to the tab’s audio, transcribes it in real time and translates it. It currently uses Deepgram, which needs a key.',
+    hint: 'For videos without captions, on any website: listens to the tab’s audio, transcribes it in real time and translates it. It needs an external speech recognition service.',
     start: 'Translate this tab’s audio',
     connecting: 'Connecting…',
     stop: 'Stop',

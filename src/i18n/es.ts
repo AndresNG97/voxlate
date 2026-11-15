@@ -205,7 +205,7 @@ export const es = {
 
   live: {
     title: 'Modo audio (beta)',
-    hint: 'Para vídeos sin subtítulos, en cualquier web: escucha el audio de la pestaña, lo transcribe en tiempo real y lo traduce. Ahora mismo usa Deepgram, que necesita una clave.',
+    hint: 'Para vídeos sin subtítulos, en cualquier web: escucha el audio de la pestaña, lo transcribe en tiempo real y lo traduce. Necesita un servicio externo de reconocimiento de voz.',
     start: 'Traducir el audio de esta pestaña',
     connecting: 'Conectando…',
     stop: 'Detener',
