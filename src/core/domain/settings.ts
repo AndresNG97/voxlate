@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   translatedColor: '#ffffff',
   originalColor: '#d8d8d8',
 
-  dub: false,
+  dub: true,
   dubEngine: 'neural',
   neuralVoice: '',
   dubVoice: '',
