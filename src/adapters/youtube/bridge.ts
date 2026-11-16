@@ -30,6 +30,8 @@ export type AgentMessage =
 export interface AgentRpc {
   /** Activa la pista de subtítulos en `lang` para forzar que YouTube la descargue. */
   enableCaptions: { args: { lang: string }; result: void };
+  /** Idioma hablado en el vídeo (el de sus subtítulos automáticos), o null si no se sabe. */
+  videoLanguage: { args: { videoId: string }; result: string | null };
   translatorStatus: { args: { from: string; to: string }; result: string };
   /** Debe llamarse justo después de un clic del usuario si hay que descargar el modelo. */
   prepareTranslator: { args: { from: string; to: string }; result: void };

@@ -10,7 +10,13 @@ export type UiLanguage = 'auto' | 'es' | 'en';
  * con DEFAULT_SETTINGS, así los campos nuevos reciben su valor por defecto.
  */
 export interface Settings {
+  /** Interruptor general de la extensión (cabecera del popup). */
   enabled: boolean;
+  /**
+   * Cada vídeo nuevo empieza desactivado y se activa con el botón del reproductor.
+   * true = se traduce solo al abrirlo, salvo si ya está en el idioma destino.
+   */
+  autoTranslate: boolean;
   /** Idioma de los menús y avisos de la extensión (no el de la traducción). */
   uiLanguage: UiLanguage;
   /** Idioma del vídeo. */
@@ -68,6 +74,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
+  autoTranslate: false,
   uiLanguage: 'auto',
   sourceLang: 'en',
   targetLang: 'es',

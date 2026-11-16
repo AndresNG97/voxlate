@@ -22,11 +22,42 @@ import {
   setNativeCaptionsHidden,
   waitForPlayer,
 } from '@/adapters/youtube/youtube-page';
+import { PlayerToggleButton } from '@/adapters/youtube/player-button';
 import { CaptionSession } from '@/core/application/caption-session';
 import { DubbingService, VoiceCalibration, type DubOptions } from '@/core/application/dubbing';
+import { decideActivation, type Activation } from '@/core/domain/activation';
 import type { Settings } from '@/core/domain/settings';
 import { alignToWords } from '@/core/domain/timing';
-import { setUiLanguage, t } from '@/i18n';
+import { languageName, setUiLanguage, t } from '@/i18n';
+
+/**
+ * Lo que el usuario ha elegido con el botón del reproductor en cada vídeo de
+ * esta pestaña. Vive en sessionStorage para que sobreviva a recargar la página.
+ */
+function videoChoices() {
+  const KEY = 'voxlate:video-choices';
+  const MAX = 100;
+  let map: Record<string, boolean> = {};
+  try {
+    map = JSON.parse(sessionStorage.getItem(KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    /* sin almacenamiento: solo en memoria */
+  }
+  return {
+    get: (videoId: string): boolean | undefined => map[videoId],
+    set(videoId: string, on: boolean) {
+      delete map[videoId];
+      map[videoId] = on;
+      const ids = Object.keys(map);
+      for (const id of ids.slice(0, Math.max(0, ids.length - MAX))) delete map[id];
+      try {
+        sessionStorage.setItem(KEY, JSON.stringify(map));
+      } catch {
+        /* da igual */
+      }
+    },
+  };
+}
 
 export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
@@ -87,6 +118,27 @@ export default defineContentScript({
     let tracks: { manual?: YoutubeCaptions; asr?: YoutubeCaptions } = {};
     let setupGen = 0;
 
+    // Botón del reproductor: activa o desactiva Voxlate en el vídeo actual.
+    const choices = videoChoices();
+    const button = new PlayerToggleButton(() => {
+      choices.set(videoId, !activation?.on);
+      void setupForCurrentVideo();
+    });
+    /** Si Voxlate está activado en el vídeo actual (null = aún no hay vídeo o se está decidiendo). */
+    let activation: Activation | null = null;
+    /** Idioma hablado en el vídeo, que se pregunta una vez por vídeo. */
+    let videoLang: { videoId: string; lang: string | null } | null = null;
+
+    function refreshButton() {
+      if (!activation) return;
+      const label = activation.on
+        ? t.page.toggleOn
+        : activation.reason === 'same-language' && videoLang?.lang
+          ? t.page.toggleSameLanguage(languageName(videoLang.lang))
+          : t.page.toggleOff;
+      button.setState(activation.on, label);
+    }
+
     function teardown() {
       session?.dispose();
       session = null;
@@ -96,7 +148,8 @@ export default defineContentScript({
     async function setupForCurrentVideo() {
       const gen = ++setupGen;
       teardown();
-      if (!settings.enabled || !isWatchPage()) return;
+      activation = null;
+      if (!settings.enabled || !isWatchPage()) return void button.remove();
 
       const player = await waitForPlayer();
       // Si mientras esperábamos cambió de vídeo, esta llamada ya no vale.
@@ -104,6 +157,26 @@ export default defineContentScript({
 
       videoId = currentVideoId();
       tracks = {};
+      button.attach(player.container);
+
+      // El idioma del vídeo solo hace falta con "traducir siempre" y sin elección del usuario.
+      const choice = choices.get(videoId);
+      if (choice === undefined && settings.autoTranslate && videoLang?.videoId !== videoId) {
+        button.setState(false, t.page.toggleOff);
+        const id = videoId;
+        const lang = await agent.videoLanguage(id).catch(() => null);
+        if (ctx.isInvalid || gen !== setupGen) return;
+        videoLang = { videoId: id, lang };
+      }
+      activation = decideActivation({
+        choice,
+        autoTranslate: settings.autoTranslate,
+        videoLang: videoLang?.videoId === videoId ? videoLang.lang : null,
+        targetLang: settings.targetLang,
+      });
+      refreshButton();
+      if (!activation.on) return;
+
       const view = new SubtitleOverlay({ kind: 'player', container: player.container });
       const media = new HtmlMediaElement(player.video);
       const dubbing = new DubbingService({
@@ -174,10 +247,16 @@ export default defineContentScript({
       const prev = settings;
       settings = next;
       setUiLanguage(next.uiLanguage);
+      if (prev.uiLanguage !== next.uiLanguage) refreshButton();
       // Cambiar de motor de voz obliga a recrear el doblaje: recreamos la sesión.
       const engineChanged = useNeural(prev) !== useNeural(next);
       if (prev.enabled !== next.enabled || prev.sourceLang !== next.sourceLang || engineChanged)
         return void setupForCurrentVideo();
+      // "Traducir siempre" o el idioma destino deciden si este vídeo va activado,
+      // salvo que el usuario ya lo haya elegido con el botón.
+      const decidesActivation =
+        prev.autoTranslate !== next.autoTranslate || (next.autoTranslate && prev.targetLang !== next.targetLang);
+      if (decidesActivation && videoId && choices.get(videoId) === undefined) return void setupForCurrentVideo();
       if (prev.audioPrecision !== next.audioPrecision) void applyAudioPrecision();
       session?.onSettingsChanged(prev, next);
     });
@@ -186,6 +265,8 @@ export default defineContentScript({
       if ((raw as RuntimeMessage).type !== 'page:status') return;
       sendResponse({
         active: !!session,
+        off: activation && !activation.on ? activation.reason : null,
+        videoLang: videoLang?.videoId === videoId ? videoLang.lang : null,
         manualCues: tracks.manual?.cues.length ?? null,
         asrWords: tracks.asr?.words?.length ?? null,
         session: session?.snapshot() ?? null,
@@ -200,6 +281,7 @@ export default defineContentScript({
       browser.runtime.onMessage.removeListener(onRuntimeMessage);
       unwatch();
       teardown();
+      button.remove();
     });
 
     setupForCurrentVideo();

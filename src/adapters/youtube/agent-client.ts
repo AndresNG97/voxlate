@@ -72,6 +72,11 @@ export class YoutubeAgentClient {
     return this.rpc('enableCaptions', { lang });
   }
 
+  /** Idioma hablado en el vídeo, o null si YouTube no lo indica. */
+  videoLanguage(videoId: string): Promise<string | null> {
+    return this.rpc('videoLanguage', { videoId });
+  }
+
   private rpc<M extends RpcMethod>(method: M, args: AgentRpc[M]['args']): Promise<AgentRpc[M]['result']> {
     const id = ++this.rpcId;
     return new Promise((resolve, reject) => {

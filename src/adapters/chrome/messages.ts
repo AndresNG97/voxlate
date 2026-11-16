@@ -39,6 +39,10 @@ export type RuntimeMessage =
 export interface PageStatus {
   /** Hay un vídeo (página /watch) y la extensión está trabajando en él. */
   active: boolean;
+  /** Hay un vídeo abierto pero Voxlate está desactivado en él, y por qué. */
+  off: import('@/core/domain/activation').OffReason | null;
+  /** Idioma hablado en el vídeo, si se sabe. */
+  videoLang: string | null;
   /** Pistas de subtítulos recibidas: manual (frases) y automática (palabras). */
   manualCues: number | null;
   asrWords: number | null;

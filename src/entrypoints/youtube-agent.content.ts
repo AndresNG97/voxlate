@@ -193,9 +193,25 @@ export default defineContentScript({
       }
     }
 
+    /**
+     * Idioma en el que se habla en el vídeo. Lo da la pista automática (YouTube la
+     * genera en el idioma del audio). Sin ella no lo sabemos: null.
+     */
+    async function videoLanguage(videoId: string): Promise<string | null> {
+      const tracks = await waitFor(() => {
+        // Tras cambiar de vídeo, el reproductor tarda un poco en tener los datos del nuevo.
+        if (videoId && currentVideoId() !== videoId) return null;
+        const t = availableTracks();
+        return t.length ? t : null;
+      }, 4500);
+      const asr = tracks?.find((t) => t.kind === 'asr');
+      return asr ? baseLang(asr.languageCode) : null;
+    }
+
     // --- RPC desde el content script ---------------------------------------------
     const handlers: { [K in RpcMethod]: (args: AgentRpc[K]['args']) => Promise<AgentRpc[K]['result']> } = {
       enableCaptions: ({ lang }) => enableCaptions(lang),
+      videoLanguage: ({ videoId }) => videoLanguage(videoId),
       setVoiceAnalysis: async ({ enabled }) => {
         audioTap.setEnabled(enabled);
         return audioTap.available;

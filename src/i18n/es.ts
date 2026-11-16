@@ -35,6 +35,10 @@ export const es = {
   },
 
   translation: {
+    openTitle: 'Al abrir un vídeo',
+    autoTranslate: 'Traducir siempre automáticamente',
+    autoOffHint: 'Cada vídeo empieza desactivado. Actívalo con el botón de Voxlate del reproductor, junto al de subtítulos.',
+    autoOnHint: (lang: string) => `Cada vídeo se traduce al abrirlo, salvo si ya está en ${lang}. Puedes desactivarlo con el botón de Voxlate del reproductor.`,
     engineTitle: 'Motor de traducción',
     engineChrome: 'Chrome (local)',
     engineYoutube: 'YouTube',
@@ -138,6 +142,9 @@ export const es = {
   status: {
     configTitle: 'Configuración',
     extension: 'Extensión',
+    onOpen: 'Al abrir un vídeo',
+    onOpenAuto: 'Traducir automáticamente',
+    onOpenManual: 'Esperar al botón del reproductor',
     languages: 'Idiomas',
     engine: 'Motor de traducción',
     chromeModel: 'Modelo de Chrome',
@@ -182,6 +189,9 @@ export const es = {
     noResponse: 'La extensión no está activa en esta pestaña. Recárgala (F5) para que empiece.',
     noVideo: 'No hay ningún vídeo abierto en esta pestaña.',
     disabled: 'La extensión está desactivada.',
+    videoOff: 'Desactivado en este vídeo. Actívalo con el botón de Voxlate del reproductor, junto al de subtítulos.',
+    videoSameLanguage: (lang: string) =>
+      `Desactivado en este vídeo porque ya está en ${lang}. Puedes activarlo igualmente con el botón de Voxlate del reproductor.`,
     waitingSubtitles: 'Esperando subtítulos…',
     manualTrack: (n: number) => `manuales (${plural(n, 'frase', 'frases')})`,
     asrTrack: (n: number) => `automáticos (${plural(n, 'palabra', 'palabras')})`,
@@ -213,6 +223,9 @@ export const es = {
 
   /** Avisos que salen sobre el vídeo de YouTube. */
   page: {
+    toggleOn: 'Voxlate: activado en este vídeo',
+    toggleOff: 'Voxlate: desactivado en este vídeo',
+    toggleSameLanguage: (lang: string) => `Voxlate: desactivado (el vídeo ya está en ${lang})`,
     preparingVoice: 'Preparando la voz neuronal… (la primera vez se descarga, ~60 MB)',
     precisionFailed: 'Sincronía de precisión: no se pudo iniciar el detector de voz.',
     precisionUnsupported: 'Sincronía de precisión: este navegador no puede analizar el audio.',

@@ -81,6 +81,11 @@ export function StatusTab({ s }: { s: Settings }) {
     <>
       <Card title={st.configTitle}>
         <Row label={st.extension} value={s.enabled ? t.on : t.off} tone={s.enabled ? 'on' : 'off'} />
+        <Row
+          label={st.onOpen}
+          value={s.autoTranslate ? st.onOpenAuto : st.onOpenManual}
+          tone={s.autoTranslate ? 'on' : 'off'}
+        />
         <Row label={st.languages} value={`${languageName(s.sourceLang)} → ${languageName(s.targetLang)}`} tone="on" />
         <Row
           label={st.engine}
@@ -160,7 +165,12 @@ function PageStatusRows({ page, s }: { page: PageStatus | null | 'no-youtube' | 
   if (page === null) return <p className="hint">{st.checking}</p>;
   if (page === 'no-youtube') return <p className="hint">{st.noYoutube}</p>;
   if (page === 'no-response') return <p className="hint">{st.noResponse}</p>;
-  if (!page.active) return <p className="hint">{s.enabled ? st.noVideo : st.disabled}</p>;
+  if (!page.active) {
+    if (!s.enabled) return <p className="hint">{st.disabled}</p>;
+    if (page.off === 'same-language' && page.videoLang)
+      return <p className="hint">{st.videoSameLanguage(languageName(page.videoLang))}</p>;
+    return <p className="hint">{page.off ? st.videoOff : st.noVideo}</p>;
+  }
 
   const snap = page.session;
   const tracks =

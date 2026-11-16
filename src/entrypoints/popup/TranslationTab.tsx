@@ -5,7 +5,7 @@ import { ChromeTranslationCache, MAX_AGE_DAYS, MAX_ENTRIES } from '@/adapters/ch
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, type Settings } from '@/core/domain/settings';
 import type { TranslatorAvailability } from '@/core/ports/translator';
 import { languageName, t } from '@/i18n';
-import { Card, Segmented } from './controls';
+import { Card, Check, Segmented } from './controls';
 import { formatBytes } from './format';
 import type { SetSettings } from './useSettings';
 
@@ -72,6 +72,15 @@ export function TranslationTab({ s, set }: { s: Settings; set: SetSettings }) {
 
   return (
     <>
+      <Card title={t.translation.openTitle}>
+        <Check checked={s.autoTranslate} onChange={(autoTranslate) => set({ autoTranslate })}>
+          {t.translation.autoTranslate}
+        </Check>
+        <p className="hint">
+          {s.autoTranslate ? t.translation.autoOnHint(languageName(s.targetLang)) : t.translation.autoOffHint}
+        </p>
+      </Card>
+
       <Card title={t.translation.engineTitle}>
         <Segmented
           value={s.engine}

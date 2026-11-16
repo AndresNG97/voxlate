@@ -34,6 +34,10 @@ export const en: Messages = {
   },
 
   translation: {
+    openTitle: 'When you open a video',
+    autoTranslate: 'Always translate automatically',
+    autoOffHint: 'Each video starts turned off. Turn it on with the Voxlate button in the player, next to the subtitles button.',
+    autoOnHint: (lang: string) => `Each video is translated as soon as you open it, unless it’s already in ${lang}. You can turn it off with the Voxlate button in the player.`,
     engineTitle: 'Translation engine',
     engineChrome: 'Chrome (local)',
     engineYoutube: 'YouTube',
@@ -137,6 +141,9 @@ export const en: Messages = {
   status: {
     configTitle: 'Settings',
     extension: 'Extension',
+    onOpen: 'When you open a video',
+    onOpenAuto: 'Translate automatically',
+    onOpenManual: 'Wait for the player button',
     languages: 'Languages',
     engine: 'Translation engine',
     chromeModel: 'Chrome model',
@@ -180,6 +187,9 @@ export const en: Messages = {
     noResponse: 'The extension isn’t active in this tab. Reload it (F5) to start.',
     noVideo: 'There’s no video open in this tab.',
     disabled: 'The extension is turned off.',
+    videoOff: 'Turned off for this video. Turn it on with the Voxlate button in the player, next to the subtitles button.',
+    videoSameLanguage: (lang: string) =>
+      `Turned off for this video because it’s already in ${lang}. You can still turn it on with the Voxlate button in the player.`,
     waitingSubtitles: 'Waiting for captions…',
     manualTrack: (n) => `manual (${plural(n, 'sentence', 'sentences')})`,
     asrTrack: (n) => `auto-generated (${plural(n, 'word', 'words')})`,
@@ -210,6 +220,9 @@ export const en: Messages = {
   },
 
   page: {
+    toggleOn: 'Voxlate: on for this video',
+    toggleOff: 'Voxlate: off for this video',
+    toggleSameLanguage: (lang: string) => `Voxlate: off (the video is already in ${lang})`,
     preparingVoice: 'Preparing the neural voice… (downloaded the first time, ~60 MB)',
     precisionFailed: 'Precision sync: couldn’t start the voice detector.',
     precisionUnsupported: 'Precision sync: this browser can’t analyze the audio.',
